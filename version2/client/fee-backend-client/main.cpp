@@ -11,12 +11,9 @@
 #include <sstream>
 #include <mutex>
 #include <queue>
-
 #include <condition_variable>
 #include <openssl/md5.h>
 #include <openssl/evp.h>
-
-#include <boost/asio.hpp>
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 
@@ -27,9 +24,16 @@ using tcp = boost::asio::ip::tcp;
 const char expected_hcv = 0x02;
 const char expected_tcv = 0x03;
 std::mutex cout_mutex;
+std::mutex command_mutex;
+std::queue<std::string> command_queue;
+std::condition_variable command_cond_var;
+int total_connection = 0;
 
 enum class PacketType : uint8_t {
     defEchoString = 100,
+	JH = 101,
+	YJ = 102,
+	ES = 103,
 };
 
 #pragma pack(push, 1)
@@ -50,43 +54,24 @@ struct Packet {
 };
 #pragma pack(pop)
 
-//It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.However lit...
 std::array<unsigned char, MD5_DIGEST_LENGTH> calculate_checksum(const std::vector<char>& data) {
-    // MD5란: 128비트 길이의 해시값을 생성하는 해시 함수
-    // 필요한 이유: 데이터의 무결성을 보장하기 위해 사용
-    // MD5 해시값을 저장할 배열
     std::array<unsigned char, MD5_DIGEST_LENGTH> checksum;
-    // MD5 해시 계산
-    // EVP_MD_CTX_new: EVP_MD_CTX 객체 생성
     EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
-    // EVP_MD_CTX_new 실패 시 예외 처리
     if (mdctx == nullptr) {
         throw std::runtime_error("Failed to create EVP_MD_CTX");
     }
 
-    // MD5 해시 초기화
-    // DigestInit_ex: 해시 함수 초기화
-    // EVP_md5: MD5 해시 함수
-    // 초기화 작업 하는 이유 : 이전에 사용된 해시 함수의 상태를 초기화하기 위해
     if (EVP_DigestInit_ex(mdctx, EVP_md5(), nullptr) != 1) {
         EVP_MD_CTX_free(mdctx);
         throw std::runtime_error("Failed to initialize digest");
     }
 
-    // MD5 해시 업데이트
-    // DigestUpdate: 데이터를 해시 함수에 업데이트
-    // data.data(): 데이터의 시작 주소
-    // data.size(): 데이터의 길이
     if (EVP_DigestUpdate(mdctx, data.data(), data.size()) != 1) {
         EVP_MD_CTX_free(mdctx);
         throw std::runtime_error("Failed to update digest");
     }
 
-    // MD5 해시 최종화
     unsigned int length = 0;
-    // DigestFinal_ex: 해시 함수를 종료하고 결과를 저장
-    // checksum.data(): 해시 결과를 저장할 배열
-    // length: 해시 결과의 길이
     if (EVP_DigestFinal_ex(mdctx, checksum.data(), &length) != 1) {
         EVP_MD_CTX_free(mdctx);
         throw std::runtime_error("Failed to finalize digest");
@@ -96,35 +81,8 @@ std::array<unsigned char, MD5_DIGEST_LENGTH> calculate_checksum(const std::vecto
     return checksum;
 }
 
+// socket 관리 pool
 class SocketPool {
-public:
-    SocketPool(boost::asio::io_context& io_context, const std::string& host, const std::string& port, std::size_t pool_size)
-        : io_context_(io_context), host_(host), port_(port) {
-        for (std::size_t i = 0; i < pool_size; ++i) {
-            auto socket = std::make_shared<tcp::socket>(io_context_);
-            tcp::resolver resolver(io_context_);
-            auto endpoints = resolver.resolve(host_, port_);
-            boost::asio::connect(*socket, endpoints);
-            pool_.push(socket);
-        }
-    }
-
-    std::shared_ptr<tcp::socket> acquire() {
-        std::unique_lock<std::mutex> lock(mutex_);
-        while (pool_.empty()) {
-            cond_var_.wait(lock);
-        }
-        auto socket = pool_.front();
-        pool_.pop();
-        return socket;
-    }
-
-    void release(std::shared_ptr<tcp::socket> socket) {
-        std::unique_lock<std::mutex> lock(mutex_);
-        pool_.push(socket);
-        cond_var_.notify_one();
-    }
-
 private:
     boost::asio::io_context& io_context_;
     std::string host_;
@@ -132,65 +90,118 @@ private:
     std::queue<std::shared_ptr<tcp::socket>> pool_;
     std::mutex mutex_;
     std::condition_variable cond_var_;
+
+public:
+	// 생성자에서 pool_size만큼 socket을 생성하여 pool에 넣는다.
+    SocketPool(boost::asio::io_context& io_context, const std::string& host, const std::string& port, std::size_t pool_size)
+        : io_context_(io_context), host_(host), port_(port) {
+        for (std::size_t i = 0; i < pool_size; ++i) {
+			// make_shared를 사용하여 shared_ptr 생성
+            auto socket = std::make_shared<tcp::socket>(io_context_);
+			// resolver를 통해 host, port로 endpoint를 얻어 connect
+            tcp::resolver resolver(io_context_);
+			// resolver.resolve(host, port)로 endpoint를 얻어 connect
+            auto endpoints = resolver.resolve(host_, port_);
+			// connect 동기로 수행
+            boost::asio::connect(*socket, endpoints);
+			// pool에 socket을 넣는다.
+            pool_.push(socket);
+        }
+    }
+
+	// pool에서 socket을 가져온다.
+	// 자료형은 shared_ptr<tcp::socket>로 tcp::socket을 가리키는 shared_ptr이다.
+    std::shared_ptr<tcp::socket> acquire() {
+		// mutex를 사용하여 pool에 대한 동시성 제어
+        std::unique_lock<std::mutex> lock(mutex_);
+		// pool이 비어있으면 대기
+        while (pool_.empty()) {
+			// 신호가 오게 되면 대기를 풀고 다시 확인
+            cond_var_.wait(lock);
+        }
+		// pool에서 socket을 가져오는데, 이는 맨 앞에서 가져오고 pop한다.
+        auto socket = pool_.front();
+        pool_.pop();
+		// socket을 반환
+        return socket;
+    }
+
+	// pool에 socket을 반환한다.
+    void release(std::shared_ptr<tcp::socket> socket) {
+		// mutex를 사용하여 pool에 대한 동시성 제어
+        std::unique_lock<std::mutex> lock(mutex_);
+		// pool에 socket을 넣는다.
+        pool_.push(socket);
+		// 신호를 보내어 대기중인 스레드를 깨운다.
+        cond_var_.notify_one();
+    }
+
 };
 
-// 시간 및 메시지 출력 함수
-void printMessageWithTime(const std::string& message) {
-    // 현재 시간 가져오기
+std::string printMessageWithTime(const std::string& message, bool isDebug = false) {
+    if (isDebug) {
+        std::lock_guard<std::mutex> lock(cout_mutex);
+        std::cout << message << std::endl;
+		total_connection++;
+        return message;
+    }
+
+	// 현재 시간을 구한다.
     auto now = std::chrono::system_clock::now();
     auto duration = now.time_since_epoch();
-
-    // 초와 밀리초 분리
     auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
     auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration) % 1000;
 
-    // 시간 포맷팅
+	// 현재 시간을 tm 구조체로 변환
     std::time_t time_t_now = seconds.count();
-    std::tm tm_now; // 안전한 tm 객체
-    localtime_s(&tm_now, &time_t_now); // Windows에서 안전한 localtime_s 사용
+    std::tm tm_now;
+    localtime_s(&tm_now, &time_t_now);
 
+	// 시간을 문자열로 변환
     std::ostringstream oss;
-    oss << std::put_time(&tm_now, "%H:%M:%S"); // 시:분:초
-    oss << "." << std::setfill('0') << std::setw(3) << milliseconds.count(); // 밀리초 추가
+    oss << std::put_time(&tm_now, "%H:%M:%S");
+    // 밀리초까지 추가함
+    oss << "." << std::setfill('0') << std::setw(3) << milliseconds.count();
 
-    // 메시지 출력
-    {
-        std::lock_guard<std::mutex> lock(cout_mutex);
-        std::cout << "[" << oss.str() << "] " << message << std::endl;
-    }
+    std::string str_retrun = "[" + oss.str() + "] " + message;
+    return str_retrun;
 }
 
-
-void handle_sockets(SocketPool& socket_pool, int socket_cnt, const std::string& message) {
+void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num) {
     try {
-        for (int i = 0; i < socket_cnt; ++i) {
+        for (int i = 0; i < connection_cnt; ++i) {
             try {
-                auto socket = socket_pool.acquire();
-
+				// 패킷 생성
                 Packet packet;
-                packet.header.type = PacketType::defEchoString;
-                packet.tail.value = 255; // 기본 값
+                packet.header.type = PacketType::ES;
+                packet.tail.value = 255;
 
-                // payload 초기화
+				// 메시지를 payload에 복사
+                std::string msg = std::to_string(thread_num) + ":" + std::to_string(i) + " " + message;
+                msg = printMessageWithTime(msg);
+				// 메시지를 최대 128자로 제한
+                msg.resize(std::min(msg.size(), (size_t)128), ' ');
+
+				// memset을 통해서 payload를 0으로 초기화
                 std::memset(packet.payload, 0, sizeof(packet.payload));
-                // message를 payload에 복사 (128바이트까지만)
-                std::memcpy(packet.payload, message.data(), (size_t)128);
+				// memcpy를 통해서 payload에 메시지를 복사
+                std::memcpy(packet.payload, msg.c_str(), std::min(msg.size(), (size_t)128));
+				// header.size에 메시지의 크기를 저장
+                packet.header.size = static_cast<uint32_t>(msg.size());
 
-                // 실제 메시지 크기 설정
-                packet.header.size = static_cast<uint32_t>(std::min(message.length(), (size_t)128));
-
-                // checksum 계산
-                auto checksum = calculate_checksum(std::vector<char>(message.begin(), message.end()));
+				// checksum을 계산하여 header.checkSum에 저장
+                auto checksum = calculate_checksum(std::vector<char>(msg.begin(), msg.end()));
                 std::memcpy(packet.header.checkSum, checksum.data(), MD5_DIGEST_LENGTH);
 
-                // 패킷 전송
+				// socket을 pool에서 가져온다.
+                auto socket = socket_pool.acquire();
+				// socket을 통해 패킷을 전송
                 boost::asio::write(*socket, boost::asio::buffer(&packet, sizeof(packet)));
-
-                // 보낸 시간 및 메시지 출력
-				printMessageWithTime("Sent message: " + std::string(packet.payload, packet.header.size));
-
-                // 소켓을 풀에 반납
+                // socket을 반환한다.
                 socket_pool.release(socket);
+
+                printMessageWithTime(msg, true);
+
             }
             catch (const std::exception& e) {
                 std::lock_guard<std::mutex> lock(cout_mutex);
@@ -210,87 +221,113 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
 
         while (true) {
             std::string message;
-            int thread_cnt, socket_cnt;
+            int thread_cnt, connection_cnt;
+			int cnt = 0;
 
-			std::cout << "Enter command: 1 ~ 3 or /debug <message>\n";
-            std::getline(std::cin, message);
+            {
+                std::unique_lock<std::mutex> lock(command_mutex);
+                command_cond_var.wait(lock, [] { return !command_queue.empty(); });
+                message = command_queue.front();
+                command_queue.pop();
+            }
 
-			if (message == "1") {
+            if (message == "1") {
                 message = "It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.However lit...";
                 thread_cnt = 10;
-				socket_cnt = 10;
+                connection_cnt = 10;
 
-				if (message.size() > 128) {
-					message = message.substr(0, 128);
-				}
+                if (message.size() > 128) {
+                    message = message.substr(0, 128);
+                }
 
                 boost::asio::thread_pool pool(thread_cnt);
                 for (int i = 0; i < thread_cnt; ++i) {
-                    boost::asio::post(pool, [&socket_pool, socket_cnt, message]() {
-                        handle_sockets(socket_pool, socket_cnt, message);
+                    boost::asio::post(pool, [&socket_pool, connection_cnt, message, i]() {
+                        handle_sockets(socket_pool, connection_cnt, message, i);
                         });
                 }
                 pool.join();
-			} 
+            }
             else if (message == "2") {
                 message = "In a quiet corner of the sprawling forest, where sunlight barely reached the ground, a small fox watched as shadows danced on the leaves.";
                 thread_cnt = 10;
-				socket_cnt = 50;
+                connection_cnt = 50;
 
-				if (message.size() > 128) {
-					message = message.substr(0, 128);
-				}
+                if (message.size() > 128) {
+                    message = message.substr(0, 128);
+                }
 
-				boost::asio::thread_pool pool(thread_cnt);
-				for (int i = 0; i < thread_cnt; ++i) {
-					boost::asio::post(pool, [&socket_pool, socket_cnt, message]() {
-						handle_sockets(socket_pool, socket_cnt, message);
-						});
-				}
-				pool.join();
-			} 
+                boost::asio::thread_pool pool(thread_cnt);
+                for (int i = 0; i < thread_cnt; ++i) {
+                    boost::asio::post(pool, [&socket_pool, connection_cnt, message, i]() {
+                        handle_sockets(socket_pool, connection_cnt, message, i);
+                        });
+                }
+                pool.join();
+            }
             else if (message == "3") {
-				message = "The sun was setting, casting a warm glow over the city as the last of the day's light faded away. the streets were quiet, the only sound the distant hum of traffic.";
+                message = "The sun was setting, casting a warm glow over the city as the last of the day's light faded away. the streets were quiet, the only sound the distant hum of traffic.";
                 thread_cnt = 10;
-				socket_cnt = 1000;
+                connection_cnt = 1000;
 
-				if (message.size() > 128) {
-					message = message.substr(0, 128);
-				}
+                if (message.size() > 128) {
+                    message = message.substr(0, 128);
+                }
 
-				boost::asio::thread_pool pool(thread_cnt);
-				for (int i = 0; i < thread_cnt; ++i) {
-					boost::asio::post(pool, [&socket_pool, socket_cnt, message]() {
-						handle_sockets(socket_pool, socket_cnt, message);
-						});
-				}
-				pool.join();
-			} 
+                boost::asio::thread_pool pool(thread_cnt);
+                for (int i = 0; i < thread_cnt; ++i) {
+                    boost::asio::post(pool, [&socket_pool, connection_cnt, message, i]() {
+                        handle_sockets(socket_pool, connection_cnt, message, i);
+                        });
+                }
+                pool.join();
+            }
+			// /debug <thread count> <connection count> <message>
             else if (message.rfind("/debug", 0) == 0) {
-                std::cout << "Write Thread Count: ";
-                std::cin >> thread_cnt;
-                std::cout << "Socket Count: ";
-                std::cin >> socket_cnt;
-                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                std::istringstream iss(message.substr(7));
+                if (!(iss >> thread_cnt >> connection_cnt)) {
+                    thread_cnt = 10;
+                    connection_cnt = 10;
+                }
+				// 전달된 thread_cnt와 connection_cnt이 숫자값으로 들어왔는 지 확인
+				if (thread_cnt <= 0 || connection_cnt <= 0) {
+					thread_cnt = 10;
+					connection_cnt = 10;
+				}
+                std::string debug_message;
+                std::getline(iss, debug_message);
+                debug_message = debug_message.empty() ? "default message" : debug_message;
 
-                std::string debug_message = message.substr(7);
                 if (debug_message.size() > 128) {
                     debug_message = debug_message.substr(0, 128);
                 }
 
-                while (true) {
-				    for (int i = 0; i < thread_cnt; ++i) {
-					    boost::asio::thread_pool pool(thread_cnt);
-					    for (int i = 0; i < thread_cnt; ++i) {
-						    boost::asio::post(pool, [&socket_pool, socket_cnt, debug_message]() {
-							    handle_sockets(socket_pool, socket_cnt, debug_message);
-							    });
-					    }
-					    pool.join();
-				    }
+                //while (true) {
+                for (int i = 0; i < thread_cnt; ++i) {
+                    boost::asio::thread_pool thread_pool_(thread_cnt);
+                    for (int i = 0; i < thread_cnt; ++i) {
+                        boost::asio::post(thread_pool_, [&socket_pool, connection_cnt, debug_message, i]() {
+                            handle_sockets(socket_pool, connection_cnt, debug_message, i);
+                            });
+                    }
+                    thread_pool_.join();
                 }
+                //}
             }
-            message.clear();
+            else if (message == "/exit") {
+                for (int i = 0; i < 10; ++i) {
+                    auto socket = socket_pool.acquire();
+                    socket->close();
+                    socket_pool.release(socket);
+                }
+                break;
+            }
+            else {
+                std::cout << "Invalid command.\n";
+            }
+        
+            std::cout << "Total connection: " << total_connection << std::endl;
+            total_connection = 0;
         }
     }
     catch (std::exception& e) {
@@ -298,45 +335,67 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
     }
 }
 
+void consoleHandler() {
+    while (true) {
+		std::cout << "Enter command: 1 ~ 3 or /debug <message>\n";
+        std::string message;
+        std::getline(std::cin, message);
+        {
+            std::lock_guard<std::mutex> lock(command_mutex);
+            command_queue.push(message);
+        }
+        command_cond_var.notify_one();
+    }
+}
+
 int main(int argc, char* argv[]) {
-	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-	_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
-	HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
-    
-    // 입력을 받아서 이중에서 선택
-    // 1. 127.0.0.1 3571
-	// 2. 192.168.20.158 27931
-    // 3. 192.
-   
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
+    HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
 
     std::string host;
     std::string chat_port;
     std::string number;
-        
-	std::cout << "Enter the address: 1~3\n";
-	std::getline(std::cin, number);
 
-	if (number == "1") {
+    std::cout << "Enter the address:\n0. remote ES server \n1. local ES Server\n2. remote YJ server\n3. local YJ Server\n4. remote JH server\n5. local JH server\n";
+    std::getline(std::cin, number);
+
+    if (number == "0") {
+        host = "192.168.21.96";
+        chat_port = "3571";
+    }
+    if (number == "1") {
         host = "127.0.0.1";
-		chat_port = "3572";
-	}
+        chat_port = "3572";
+    }
     else if (number == "2") {
         host = "192.168.20.158";
         chat_port = "27931";
     }
-	else if (number == "3") {
+    else if (number == "3") {
         host = "127.0.0.1";
-	    chat_port = "27931";
-	}
-	else {
+        chat_port = "27931";
+    }
+    else if (number == "4") {
+        host = "192.168.";
+        chat_port = "";
+    }
+    else if (number == "5") {
+        host = "127.0.0.1";
+        chat_port = "";
+    }
+    else {
         host = "127.0.0.1";
         chat_port = "3572";
-		std::cout << "Invalid input. Using default(local) address.\n";
-	}
+        std::cout << "Invalid input. Using default(local) address.\n";
+    }
 
     try {
         boost::asio::io_context io_context;
-        write_messages(io_context, host, chat_port);
+        std::thread consoleThread(consoleHandler);
+        std::thread writeThread(write_messages, std::ref(io_context), host, chat_port);
+        consoleThread.join();
+        writeThread.join();
     }
     catch (std::exception& e) {
         std::cerr << "Exception: " << e.what() << "\n";
