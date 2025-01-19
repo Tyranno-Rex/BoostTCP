@@ -81,7 +81,19 @@ void Server::handleRead(const boost::system::error_code& error,
 
     if (!error) {
         if (bytes_transferred > 0) {
-            packet_buffer->append(temp_buffer->data(), bytes_transferred);
+			if (!packet_buffer->hasOompleteHeader()) {
+				if (temp_buffer->size() < sizeof(PacketHeader)) {
+					std::cerr << "PacketHeader size is too small" << std::endl;
+                    return;
+				}
+			    PacketHeader header;
+			    std::memcpy(&header, temp_buffer->data(), sizeof(PacketHeader));
+				packet_buffer->setPacketSize(header.size);
+				packet_buffer->append(temp_buffer->data(), bytes_transferred);
+			}
+			else {
+				packet_buffer->append(temp_buffer->data(), bytes_transferred);
+			}
 
             while (auto maybe_packet = packet_buffer->extractPacket()) {
                 Packet& packet = *maybe_packet;
@@ -98,7 +110,7 @@ void Server::handleRead(const boost::system::error_code& error,
                 }
 
                 std::string message(packet.payload, packet.header.size);
-                std::cout << message << "\n";
+                std::cout << "message: " <<  message << "\n";
             }
         }
 

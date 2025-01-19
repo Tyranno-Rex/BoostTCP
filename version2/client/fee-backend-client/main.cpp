@@ -1,58 +1,13 @@
-#include <iostream>
-#include <array>
-#include <memory>
-#include <vector>
-#include <thread>
-#include <cstdint>
-#include <zlib.h>
-#include <string>
-#include <chrono>
-#include <iomanip>
-#include <sstream>
-#include <mutex>
-#include <queue>
-#include <condition_variable>
-#include <openssl/md5.h>
-#include <openssl/evp.h>
-#include <boost/asio.hpp>
-#include <boost/beast.hpp>
+#include "main.hpp"
+#include "socket.hpp"
 
-namespace beast = boost::beast;
-namespace http = beast::http;
-using tcp = boost::asio::ip::tcp;
-
+std::queue<std::string> command_queue;
+std::condition_variable command_cond_var;
+int total_connection = 0;
 const char expected_hcv = 0x02;
 const char expected_tcv = 0x03;
 std::mutex cout_mutex;
 std::mutex command_mutex;
-std::queue<std::string> command_queue;
-std::condition_variable command_cond_var;
-int total_connection = 0;
-
-enum class PacketType : uint8_t {
-    defEchoString = 100,
-	JH = 101,
-	YJ = 102,
-	ES = 103,
-};
-
-#pragma pack(push, 1)
-struct PacketHeader {
-    PacketType type;           // 기본 : 100
-    char checkSum[16];
-    uint32_t size;
-};
-
-struct PacketTail {
-    uint8_t value;
-};
-
-struct Packet {
-    PacketHeader header;
-    char payload[128];
-    PacketTail tail;              // 기본 : 255
-};
-#pragma pack(pop)
 
 std::array<unsigned char, MD5_DIGEST_LENGTH> calculate_checksum(const std::vector<char>& data) {
     std::array<unsigned char, MD5_DIGEST_LENGTH> checksum;
@@ -81,64 +36,7 @@ std::array<unsigned char, MD5_DIGEST_LENGTH> calculate_checksum(const std::vecto
     return checksum;
 }
 
-// socket 관리 pool
-class SocketPool {
-private:
-    boost::asio::io_context& io_context_;
-    std::string host_;
-    std::string port_;
-    std::queue<std::shared_ptr<tcp::socket>> pool_;
-    std::mutex mutex_;
-    std::condition_variable cond_var_;
-
-public:
-	// 생성자에서 pool_size만큼 socket을 생성하여 pool에 넣는다.
-    SocketPool(boost::asio::io_context& io_context, const std::string& host, const std::string& port, std::size_t pool_size)
-        : io_context_(io_context), host_(host), port_(port) {
-        for (std::size_t i = 0; i < pool_size; ++i) {
-			// make_shared를 사용하여 shared_ptr 생성
-            auto socket = std::make_shared<tcp::socket>(io_context_);
-			// resolver를 통해 host, port로 endpoint를 얻어 connect
-            tcp::resolver resolver(io_context_);
-			// resolver.resolve(host, port)로 endpoint를 얻어 connect
-            auto endpoints = resolver.resolve(host_, port_);
-			// connect 동기로 수행
-            boost::asio::connect(*socket, endpoints);
-			// pool에 socket을 넣는다.
-            pool_.push(socket);
-        }
-    }
-
-	// pool에서 socket을 가져온다.
-	// 자료형은 shared_ptr<tcp::socket>로 tcp::socket을 가리키는 shared_ptr이다.
-    std::shared_ptr<tcp::socket> acquire() {
-		// mutex를 사용하여 pool에 대한 동시성 제어
-        std::unique_lock<std::mutex> lock(mutex_);
-		// pool이 비어있으면 대기
-        while (pool_.empty()) {
-			// 신호가 오게 되면 대기를 풀고 다시 확인
-            cond_var_.wait(lock);
-        }
-		// pool에서 socket을 가져오는데, 이는 맨 앞에서 가져오고 pop한다.
-        auto socket = pool_.front();
-        pool_.pop();
-		// socket을 반환
-        return socket;
-    }
-
-	// pool에 socket을 반환한다.
-    void release(std::shared_ptr<tcp::socket> socket) {
-		// mutex를 사용하여 pool에 대한 동시성 제어
-        std::unique_lock<std::mutex> lock(mutex_);
-		// pool에 socket을 넣는다.
-        pool_.push(socket);
-		// 신호를 보내어 대기중인 스레드를 깨운다.
-        cond_var_.notify_one();
-    }
-
-};
-
-std::string printMessageWithTime(const std::string& message, bool isDebug = false) {
+std::string printMessageWithTime(const std::string& message, bool isDebug) {
     if (isDebug) {
         std::lock_guard<std::mutex> lock(cout_mutex);
         std::cout << message << std::endl;
@@ -167,54 +65,6 @@ std::string printMessageWithTime(const std::string& message, bool isDebug = fals
     return str_retrun;
 }
 
-void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num) {
-    try {
-        for (int i = 0; i < connection_cnt; ++i) {
-            try {
-				// 패킷 생성
-                Packet packet;
-                packet.header.type = PacketType::ES;
-                packet.tail.value = 255;
-
-				// 메시지를 payload에 복사
-                std::string msg = std::to_string(thread_num) + ":" + std::to_string(i) + " " + message;
-                msg = printMessageWithTime(msg);
-				// 메시지를 최대 128자로 제한
-                msg.resize(std::min(msg.size(), (size_t)128), ' ');
-
-				// memset을 통해서 payload를 0으로 초기화
-                std::memset(packet.payload, 0, sizeof(packet.payload));
-				// memcpy를 통해서 payload에 메시지를 복사
-                std::memcpy(packet.payload, msg.c_str(), std::min(msg.size(), (size_t)128));
-				// header.size에 메시지의 크기를 저장
-                packet.header.size = static_cast<uint32_t>(msg.size());
-
-				// checksum을 계산하여 header.checkSum에 저장
-                auto checksum = calculate_checksum(std::vector<char>(msg.begin(), msg.end()));
-                std::memcpy(packet.header.checkSum, checksum.data(), MD5_DIGEST_LENGTH);
-
-				// socket을 pool에서 가져온다.
-                auto socket = socket_pool.acquire();
-				// socket을 통해 패킷을 전송
-                boost::asio::write(*socket, boost::asio::buffer(&packet, sizeof(packet)));
-                // socket을 반환한다.
-                socket_pool.release(socket);
-
-                printMessageWithTime(msg, true);
-
-            }
-            catch (const std::exception& e) {
-                std::lock_guard<std::mutex> lock(cout_mutex);
-                std::cerr << "Error handling socket " << i << ": " << e.what() << std::endl;
-            }
-        }
-    }
-    catch (const std::exception& e) {
-        std::lock_guard<std::mutex> lock(cout_mutex);
-        std::cerr << "Error handling sockets: " << e.what() << std::endl;
-    }
-}
-
 void write_messages(boost::asio::io_context& io_context, const std::string& host, const std::string& port) {
     try {
         SocketPool socket_pool(io_context, host, port, 10);
@@ -230,8 +80,24 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                 message = command_queue.front();
                 command_queue.pop();
             }
+            if (message == "0") {
+				message = "Hello, world!";
+				thread_cnt = 1;
+				connection_cnt = 1;
 
-            if (message == "1") {
+				if (message.size() > 128) {
+					message = message.substr(0, 128);
+				}
+
+				boost::asio::thread_pool pool(thread_cnt);
+				for (int i = 0; i < thread_cnt; ++i) {
+					boost::asio::post(pool, [&socket_pool, connection_cnt, message, i]() {
+						handle_sockets2(socket_pool, connection_cnt, message, i);
+						});
+				}
+				pool.join();
+			}
+            else if (message == "1") {
                 message = "It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.However lit...";
                 thread_cnt = 10;
                 connection_cnt = 10;

@@ -5,6 +5,9 @@
 // PacketType: 패킷을 구분을 위한 변수
 enum class PacketType : uint8_t {
     defEchoString = 100,
+    JH = 101,
+    YJ = 102,
+    ES = 103,
 };
 
 // pack(push, 1): 
@@ -31,35 +34,55 @@ struct Packet {
 class PacketBuffer {
 private:
     std::vector<char> buffer;
-    const size_t packet_size;
+    size_t size_payload;
 
 public:
-    PacketBuffer() : packet_size(sizeof(Packet)) {
-        buffer.reserve(packet_size * 2);  // 최소 2개 패킷 크기로 예약
+	PacketBuffer() : size_payload(sizeof(Packet)) {
+		buffer.reserve(size_payload);
     }
+
+	void setPacketSize(size_t size) {
+		buffer.reserve(size);
+	}
 
     void append(const char* data, size_t length) {
         buffer.insert(buffer.end(), data, data + length);
     }
 
     bool hasCompletePacket() const {
-        return buffer.size() >= packet_size;
+        return buffer.size() >= size_payload;
     }
 
-    // 완전한 패킷을 추출하고 나머지는 버퍼에 유지
+	bool hasOompleteHeader() const {
+		return buffer.size() >= sizeof(PacketHeader);
+	}
+
     std::optional<Packet> extractPacket() {
-        if (buffer.size() < packet_size) {
+        if (buffer.size() < size_payload) {
             return std::nullopt;
         }
 
         Packet packet;
-        std::memcpy(&packet, buffer.data(), packet_size);
+        std::memcpy(&packet, buffer.data(), size_payload);
+
+		if (size_t(packet.tail.value) != 255) {
+			return std::nullopt;
+		}
 
         // 처리된 데이터를 버퍼에서 제거
-        buffer.erase(buffer.begin(), buffer.begin() + packet_size);
+        buffer.erase(buffer.begin(), buffer.begin() + size_payload);
 
         return packet;
     }
+
+	std::string debugBuffer() {
+		return std::string(buffer.begin(), buffer.end());
+	}
+		
+
+	size_t getPacketSize() const {
+		return size_payload;
+	}
 
     size_t size() const {
         return buffer.size();
@@ -68,4 +91,8 @@ public:
     void clear() {
         buffer.clear();
     }
+
+	const char* data() const {
+		return buffer.data();
+	}
 };
