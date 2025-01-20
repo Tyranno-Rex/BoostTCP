@@ -98,15 +98,20 @@ void handle_sockets2(SocketPool& socket_pool, int connection_cnt, const std::str
 
                 // 패킷을 두 개로 나누어 전송
                 auto socket = socket_pool.acquire();
-                ;
 
-                // 첫 번째 부분 전송
-				boost::asio::write(*socket, boost::asio::buffer(&packet, sizeof(packet) / 2));
 
-                // 두 번째 부분 전송
-				boost::asio::write(*socket, boost::asio::buffer(reinterpret_cast<char*>(&packet) + sizeof(packet) / 2, sizeof(packet) - sizeof(packet) / 2));
 
-                socket_pool.release(socket);
+				//패킷자체를 보내는 게 아니라, 패킷의 버퍼자체를 보내는 방식으로 변경
+				BYTE* buffer = reinterpret_cast<BYTE*>(&packet);
+				boost::asio::write(*socket, boost::asio::buffer(buffer, sizeof(buffer)));
+
+    //            // 첫 번째 부분 전송
+				//boost::asio::write(*socket, boost::asio::buffer(&packet, sizeof(packet) / 2));
+
+    //            // 두 번째 부분 전송
+				//boost::asio::write(*socket, boost::asio::buffer(reinterpret_cast<char*>(&packet) + sizeof(packet) / 2, sizeof(packet) - sizeof(packet) / 2));
+
+    //            socket_pool.release(socket);
 
             }
             catch (const std::exception& e) {

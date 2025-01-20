@@ -28,8 +28,8 @@ int main(void) {
 #endif
 
     try {
-        Server ConsoleServer(3571);
-        Server chatServer(3572);
+        Server ConsoleServer(7778);
+        Server chatServer(7777);
 
         std::thread consoleThread(consoleInputHandler);
         std::thread chatThread([&chatServer]() {

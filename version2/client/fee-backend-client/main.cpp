@@ -228,31 +228,31 @@ int main(int argc, char* argv[]) {
 
     if (number == "0") {
         host = "192.168.21.96";
-        chat_port = "3571";
+        chat_port = "7777";
     }
     if (number == "1") {
         host = "127.0.0.1";
-        chat_port = "3572";
+        chat_port = "7777";
     }
     else if (number == "2") {
         host = "192.168.20.158";
-        chat_port = "27931";
+        chat_port = "7777";
     }
     else if (number == "3") {
         host = "127.0.0.1";
-        chat_port = "27931";
+        chat_port = "7777";
     }
     else if (number == "4") {
         host = "192.168.";
-        chat_port = "";
+        chat_port = "7777";
     }
     else if (number == "5") {
         host = "127.0.0.1";
-        chat_port = "";
+        chat_port = "7777";
     }
     else {
         host = "127.0.0.1";
-        chat_port = "3572";
+        chat_port = "7777";
         std::cout << "Invalid input. Using default(local) address.\n";
     }
 

@@ -37,11 +37,16 @@ private:
     size_t size_payload;
 
 public:
-	PacketBuffer() : size_payload(sizeof(Packet)) {
-		buffer.reserve(size_payload);
+    PacketBuffer() : size_payload(0) {
+		buffer.reserve(sizeof(Packet));
     }
 
+	//PacketBuffer(size_t size_payload_) : size_payload(sizeof(size_payload_)) {
+	//	buffer.reserve(size_payload_);
+ //   }
+
 	void setPacketSize(size_t size) {
+		size_payload = size;
 		buffer.reserve(size);
 	}
 
