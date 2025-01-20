@@ -67,7 +67,7 @@ std::string printMessageWithTime(const std::string& message, bool isDebug) {
 
 void write_messages(boost::asio::io_context& io_context, const std::string& host, const std::string& port) {
     try {
-        SocketPool socket_pool(io_context, host, port, 10);
+        SocketPool socket_pool(io_context, host, port, 100);
 
         while (true) {
             std::string message;
@@ -168,8 +168,7 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                     debug_message = debug_message.substr(0, 128);
                 }
 
-                //while (true) {
-                for (int i = 0; i < thread_cnt; ++i) {
+                while (true) {
                     boost::asio::thread_pool thread_pool_(thread_cnt);
                     for (int i = 0; i < thread_cnt; ++i) {
                         boost::asio::post(thread_pool_, [&socket_pool, connection_cnt, debug_message, i]() {
@@ -178,7 +177,6 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                     }
                     thread_pool_.join();
                 }
-                //}
             }
             else if (message == "/exit") {
                 for (int i = 0; i < 10; ++i) {

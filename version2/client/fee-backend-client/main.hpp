@@ -33,19 +33,19 @@ enum class PacketType : uint8_t {
 
 #pragma pack(push, 1)
 struct PacketHeader {
-    PacketType type;           // 기본 : 100
-    char checkSum[16];
-    uint32_t size;
+	PacketType type;            // 1byte
+	char checkSum[16];          // 16byte
+	uint32_t size;              // 4byte
 };
 
 struct PacketTail {
-    uint8_t value;
+	uint8_t value; 		        // 1byte
 };
 
 struct Packet {
-    PacketHeader header;
-    char payload[128];
-    PacketTail tail;              // 기본 : 255
+	PacketHeader header;         // 기본 : 21
+	char payload[128];			// 기본 : 128	
+    PacketTail tail;             // 기본 : 255
 };
 #pragma pack(pop)
 

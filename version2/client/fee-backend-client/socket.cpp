@@ -31,32 +31,25 @@ void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::stri
                 // checksum을 계산하여 header.checkSum에 저장
                 auto checksum = calculate_checksum(std::vector<char>(msg.begin(), msg.end()));
                 std::memcpy(packet.header.checkSum, checksum.data(), MD5_DIGEST_LENGTH);
-
                 // socket을 pool에서 가져온다.
                 auto socket = socket_pool.acquire();
-                // socket을 통해 패킷을 전송
-                //boost::asio::write(*socket, boost::asio::buffer(&packet, sizeof(packet)));
                 
+                // socket을 통해 패킷을 한 번에 전송
+                boost::asio::write(*socket, boost::asio::buffer(&packet, sizeof(packet)));
 
-
-				size_t total_size = sizeof(packet);
-				std::cout << "header size: " << sizeof(packet.header) << std::endl;
-
+				//// 패킷을 헤더와 페이로드로 나누어 전송
+				//size_t total_size = sizeof(packet);
+				//size_t header_size = sizeof(packet.header);
                 // 첫 번째 부분 전송
-                boost::asio::write(*socket, boost::asio::buffer(&packet, sizeof(21)));
-               
-				// 4개로 나누어 전송 (1/4)
-				boost::asio::write(*socket, boost::asio::buffer(reinterpret_cast<char*>(&packet) + sizeof(21), (total_size - sizeof(21)) / 4));
-
-				// 4개로 나누어 전송 (2/4)
-				boost::asio::write(*socket, boost::asio::buffer(reinterpret_cast<char*>(&packet) + sizeof(21) + (total_size - sizeof(21)) / 4, (total_size - sizeof(21)) / 4));
-
-				// 4개로 나누어 전송 (3/4)
-				boost::asio::write(*socket, boost::asio::buffer(reinterpret_cast<char*>(&packet) + sizeof(21) + (total_size - sizeof(21)) / 2, (total_size - sizeof(21)) / 4));
-
-				// 4개로 나누어 전송 (4/4)
-				boost::asio::write(*socket, boost::asio::buffer(reinterpret_cast<char*>(&packet) + sizeof(21) + (total_size - sizeof(21)) / 4 * 3, (total_size - sizeof(21)) / 4));
-
+				//boost::asio::write(*socket, boost::asio::buffer(&packet, header_size));
+				//// 4개로 나누어 전송 (1/4)
+				//boost::asio::write(*socket, boost::asio::buffer(packet.payload, sizeof(packet.payload) / 4));
+				//// 4개로 나누어 전송 (2/4)
+				//boost::asio::write(*socket, boost::asio::buffer(packet.payload + sizeof(packet.payload) / 4, sizeof(packet.payload) / 4));
+				//// 4개로 나누어 전송 (3/4)
+				//boost::asio::write(*socket, boost::asio::buffer(packet.payload + sizeof(packet.payload) / 2, sizeof(packet.payload) / 4));
+				//// 4개로 나누어 전송 (4/4)
+				//boost::asio::write(*socket, boost::asio::buffer(packet.payload + sizeof(packet.payload) / 4 * 3, sizeof(packet.payload) / 4 + 1));
 
                 // socket을 반환한다.
                 socket_pool.release(socket);

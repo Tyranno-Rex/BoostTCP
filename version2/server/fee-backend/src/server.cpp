@@ -98,18 +98,18 @@ void Server::handleRead(const boost::system::error_code& error,
             while (auto maybe_packet = packet_buffer->extractPacket()) {
                 Packet& packet = *maybe_packet;
                 std::vector<char> payload_data(packet.payload,
-                    packet.payload + packet.header.size);
+					packet.payload + sizeof(packet.payload));
 
-                auto calculated_checksum = calculate_checksum(payload_data);
-                bool checksum_valid = std::memcmp(packet.header.checkSum,
-                    calculated_checksum.data(), MD5_DIGEST_LENGTH) == 0;
+                //auto calculated_checksum = calculate_checksum(payload_data);
+                //bool checksum_valid = std::memcmp(packet.header.checkSum,
+                //    calculated_checksum.data(), MD5_DIGEST_LENGTH) == 0;
+                //if (!checksum_valid) {
+                //    //packet_buffer->packet_clear();
+                //    std::cerr << "Checksum validation failed for packet" << std::endl;
+                //    continue;
+                //}
 
-                if (!checksum_valid) {
-                    std::cerr << "Checksum validation failed for packet" << std::endl;
-                    continue;
-                }
-
-                std::string message(packet.payload, packet.header.size);
+				std::string message(packet.payload, sizeof(packet.payload));
                 std::cout << "message: " <<  message << "\n";
             }
         }
