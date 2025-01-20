@@ -2,6 +2,45 @@
 #include "../include/packet.hpp"
 #include <openssl/md5.h>
 #include <openssl/evp.h>
+#include <chrono>
+#include <iomanip>
+
+int total_connection = 0;
+std::mutex cout_mutex;
+std::mutex command_mutex;
+
+std::string printMessageWithTime(const std::string& message, bool isDebug) {
+    if (isDebug) {
+        std::lock_guard<std::mutex> lock(cout_mutex);
+        std::cout << message << std::endl;
+        total_connection++;
+		if (total_connection % 1000 == 0) {
+			std::cout << "Total connection: " << total_connection << std::endl;
+		}
+        return message;
+
+    }
+
+    // 현재 시간을 구한다.
+    auto now = std::chrono::system_clock::now();
+    auto duration = now.time_since_epoch();
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+    auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration) % 1000;
+
+    // 현재 시간을 tm 구조체로 변환
+    std::time_t time_t_now = seconds.count();
+    std::tm tm_now;
+    localtime_s(&tm_now, &time_t_now);
+
+    // 시간을 문자열로 변환
+    std::ostringstream oss;
+    oss << std::put_time(&tm_now, "%H:%M:%S");
+    // 밀리초까지 추가함
+    oss << "." << std::setfill('0') << std::setw(3) << milliseconds.count();
+
+    std::string str_retrun = "[" + oss.str() + "] " + message;
+    return str_retrun;
+}
 
 std::array<unsigned char, MD5_DIGEST_LENGTH> calculate_checksum(const std::vector<char>& data) {
     // MD5란: 128비트 길이의 해시값을 생성하는 해시 함수
@@ -81,37 +120,39 @@ void Server::handleRead(const boost::system::error_code& error,
 
     if (!error) {
         if (bytes_transferred > 0) {
-			if (!packet_buffer->hasOompleteHeader()) {
-				if (temp_buffer->size() < sizeof(PacketHeader)) {
-					std::cerr << "PacketHeader size is too small" << std::endl;
-                    return;
-				}
-			    PacketHeader header;
-			    std::memcpy(&header, temp_buffer->data(), sizeof(PacketHeader));
-				packet_buffer->setPacketSize(header.size);
-				packet_buffer->append(temp_buffer->data(), bytes_transferred);
-			}
-			else {
-				packet_buffer->append(temp_buffer->data(), bytes_transferred);
-			}
+			 packet_buffer->append(temp_buffer->data(), bytes_transferred); 
+			
+    //         if (!packet_buffer->hasOompleteHeader()) {
+    //             if (temp_buffer->size() < sizeof(PacketHeader)) {
+    //                 std::cerr << "PacketHeader size is too small" << std::endl;
+    //                 return;
+    //             }
+    //             packet_buffer->append(temp_buffer->data(), bytes_transferred);
+    //         }
+	//         else {
+	//			   packet_buffer->append(temp_buffer->data(), bytes_transferred);
+	//         }
+            
 
             while (auto maybe_packet = packet_buffer->extractPacket()) {
                 Packet& packet = *maybe_packet;
                 std::vector<char> payload_data(packet.payload,
 					packet.payload + sizeof(packet.payload));
 
-                //auto calculated_checksum = calculate_checksum(payload_data);
-                //bool checksum_valid = std::memcmp(packet.header.checkSum,
-                //    calculated_checksum.data(), MD5_DIGEST_LENGTH) == 0;
-                //if (!checksum_valid) {
-                //    //packet_buffer->packet_clear();
-                //    std::cerr << "Checksum validation failed for packet" << std::endl;
-                //    continue;
-                //}
+                auto calculated_checksum = calculate_checksum(payload_data);
+                bool checksum_valid = std::memcmp(packet.header.checkSum,
+                    calculated_checksum.data(), MD5_DIGEST_LENGTH) == 0;
+                if (!checksum_valid) {
+                    packet_buffer->packet_clear();
+                    std::cerr << "Checksum validation failed for packet" << std::endl;
+                    continue;
+                }
 
 				std::string message(packet.payload, sizeof(packet.payload));
-                std::cout << "message: " <<  message << "\n";
+				printMessageWithTime(message, true);
             }
+
+			packet_buffer->clear();
         }
 
         client_socket->async_read_some(
@@ -133,6 +174,7 @@ void Server::handleRead(const boost::system::error_code& error,
         }
     }
 }
+
 
 void Server::chatRun() {
     try {

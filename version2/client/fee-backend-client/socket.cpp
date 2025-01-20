@@ -26,11 +26,12 @@ void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::stri
                 // memcpy를 통해서 payload에 메시지를 복사
                 std::memcpy(packet.payload, msg.c_str(), std::min(msg.size(), (size_t)128));
                 // header.size에 메시지의 크기를 저장
-                packet.header.size = static_cast<uint32_t>(msg.size());
+				packet.header.size = static_cast<uint32_t>(sizeof(packet));
 
                 // checksum을 계산하여 header.checkSum에 저장
                 auto checksum = calculate_checksum(std::vector<char>(msg.begin(), msg.end()));
                 std::memcpy(packet.header.checkSum, checksum.data(), MD5_DIGEST_LENGTH);
+
                 // socket을 pool에서 가져온다.
                 auto socket = socket_pool.acquire();
                 
