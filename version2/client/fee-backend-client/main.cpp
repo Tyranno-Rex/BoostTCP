@@ -92,7 +92,7 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
 				boost::asio::thread_pool pool(thread_cnt);
 				for (int i = 0; i < thread_cnt; ++i) {
 					boost::asio::post(pool, [&socket_pool, connection_cnt, message, i]() {
-						handle_sockets2(socket_pool, connection_cnt, message, i);
+						handle_sockets(socket_pool, connection_cnt, message, i);
 						});
 				}
 				pool.join();

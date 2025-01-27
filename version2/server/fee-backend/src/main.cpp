@@ -28,8 +28,10 @@ int main(void) {
 #endif
 
     try {
-        Server ConsoleServer(7778);
-        Server chatServer(7777);
+		boost::asio::io_context io_context;
+
+        Server chatServer(io_context, 7777);
+		Server consoleServer(io_context, 7778);
 
         std::thread consoleThread(consoleInputHandler);
         std::thread chatThread([&chatServer]() {

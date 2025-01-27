@@ -9,6 +9,8 @@ int total_connection = 0;
 std::mutex cout_mutex;
 std::mutex command_mutex;
 
+MemoryPool g_memory_pool(1000);
+
 std::string printMessageWithTime(const std::string& message, bool isDebug) {
     if (isDebug) {
         std::lock_guard<std::mutex> lock(cout_mutex);
@@ -87,106 +89,113 @@ std::array<unsigned char, MD5_DIGEST_LENGTH> calculate_checksum(const std::vecto
     return checksum;
 }
 
-void Server::handleAccept(std::shared_ptr<tcp::socket> socket, tcp::acceptor& acceptor) {
-    {
-        std::lock_guard<std::mutex> lock(clients_mutex);
-        clients.push_back(socket);
-    }
-    chatSession(socket);
-    auto next_socket = std::make_shared<tcp::socket>(io_context);
-    acceptor.async_accept(*next_socket,
-        std::bind(&Server::handleAccept, this, next_socket, std::ref(acceptor)));
-}
+void ClientSession::doRead() {
+    auto self = shared_from_this();
+	current_buffer = g_memory_pool.acquire();
 
-void Server::chatSession(std::shared_ptr<tcp::socket> client_socket) {
-    auto temp_buffer = std::make_shared<std::array<char, 1024>>();
-    auto packet_buffer = std::make_shared<PacketBuffer>();
-
-    client_socket->async_read_some(
-        boost::asio::buffer(*temp_buffer),
-        std::bind(&Server::handleRead, this,
-            std::placeholders::_1,
-            std::placeholders::_2,
-            client_socket,
-            temp_buffer,
-            packet_buffer));
-}
-
-void Server::handleRead(const boost::system::error_code& error,
-    size_t bytes_transferred,
-    std::shared_ptr<tcp::socket> client_socket,
-    std::shared_ptr<std::array<char, 1024>> temp_buffer,
-    std::shared_ptr<PacketBuffer> packet_buffer) {
-
-    if (!error) {
-        if (bytes_transferred > 0) {
-			 packet_buffer->append(temp_buffer->data(), bytes_transferred); 
-			
-    //         if (!packet_buffer->hasOompleteHeader()) {
-    //             if (temp_buffer->size() < sizeof(PacketHeader)) {
-    //                 std::cerr << "PacketHeader size is too small" << std::endl;
-    //                 return;
-    //             }
-    //             packet_buffer->append(temp_buffer->data(), bytes_transferred);
-    //         }
-	//         else {
-	//			   packet_buffer->append(temp_buffer->data(), bytes_transferred);
-	//         }
-            
-
-            while (auto maybe_packet = packet_buffer->extractPacket()) {
-                Packet& packet = *maybe_packet;
-                std::vector<char> payload_data(packet.payload,
-					packet.payload + sizeof(packet.payload));
-
-                auto calculated_checksum = calculate_checksum(payload_data);
-                bool checksum_valid = std::memcmp(packet.header.checkSum,
-                    calculated_checksum.data(), MD5_DIGEST_LENGTH) == 0;
-                if (!checksum_valid) {
-                    packet_buffer->packet_clear();
-                    std::cerr << "Checksum validation failed for packet" << std::endl;
-                    continue;
+    socket.async_read_some(
+        boost::asio::buffer(current_buffer),
+        [this, self](const boost::system::error_code& error, size_t bytes_transferred) {
+            if (!error) {
+                if (handlePacket(bytes_transferred)) {
+                    g_memory_pool.release(current_buffer);
+                    doRead();
                 }
-
-				std::string message(packet.payload, sizeof(packet.payload));
-				printMessageWithTime(message, true);
             }
+            else {
+                std::cerr << "Read error: " << error.message() << std::endl;
+                g_memory_pool.release(current_buffer);
+            }
+        });
+}
 
-			packet_buffer->clear();
+bool ClientSession::handlePacket(size_t bytes_transferred) {
+    // 받은 데이터를 패킷 버퍼에 추가
+    if (packet_buffer_offset + bytes_transferred > packet_buffer.size()) {
+        std::cerr << "Buffer overflow" << std::endl;
+        packet_buffer_offset = 0;
+        return false;
+    }
+
+    std::memcpy(packet_buffer.data() + packet_buffer_offset,
+        current_buffer.data(),
+        bytes_transferred);
+    packet_buffer_offset += bytes_transferred;
+
+    // 완전한 패킷이 수신되었는지 확인
+    while (packet_buffer_offset >= sizeof(Packet)) {
+        Packet* packet = reinterpret_cast<Packet*>(packet_buffer.data());
+
+        // 체크섬 검증
+        std::vector<char> payload_data(packet->payload,
+            packet->payload + sizeof(packet->payload));
+        auto calculated_checksum = calculate_checksum(payload_data);
+
+        if (std::memcmp(packet->header.checkSum,
+            calculated_checksum.data(),
+            MD5_DIGEST_LENGTH) != 0) {
+            std::cerr << "Checksum validation failed" << std::endl;
+            packet_buffer_offset = 0;
+            return false;
         }
 
-        client_socket->async_read_some(
-            boost::asio::buffer(*temp_buffer),
-            std::bind(&Server::handleRead, this,
-                std::placeholders::_1,
-                std::placeholders::_2,
-                client_socket,
-                temp_buffer,
-                packet_buffer));
-    }
-    else {
-        if (error == boost::asio::error::eof || error == boost::asio::error::connection_reset) {
-            std::lock_guard<std::mutex> lock(clients_mutex);
-            clients.erase(std::remove(clients.begin(), clients.end(), client_socket), clients.end());
+        // tail 값 검증
+        if (packet->tail.value != 255) {
+            std::cerr << "Invalid tail value" << std::endl;
+            packet_buffer_offset = 0;
+            return false;
+        }
+
+        // 메시지 처리
+        std::string message(packet->payload, sizeof(packet->payload));
+        printMessageWithTime(message, true);
+
+        // 처리된 패킷 제거
+        if (packet_buffer_offset > sizeof(Packet)) {
+            std::memmove(packet_buffer.data(),
+                packet_buffer.data() + sizeof(Packet),
+                packet_buffer_offset - sizeof(Packet));
+            packet_buffer_offset -= sizeof(Packet);
         }
         else {
-            std::cerr << "Error in chat session: " << error.message() << std::endl;
+            packet_buffer_offset = 0;
         }
     }
+    return true;
 }
-
 
 void Server::chatRun() {
     try {
-        tcp::acceptor acceptor(io_context, { tcp::v4(), static_cast<boost::asio::ip::port_type>(port) });
-
-        auto first_socket = std::make_shared<tcp::socket>(io_context);
-        acceptor.async_accept(*first_socket,
-            std::bind(&Server::handleAccept, this, first_socket, std::ref(acceptor)));
-
+        tcp::acceptor acceptor(io_context,
+            tcp::endpoint(tcp::v4(), port));
+        doAccept(acceptor);
         io_context.run();
     }
     catch (const std::exception& e) {
         std::cerr << "Error in chatRun: " << e.what() << std::endl;
     }
+}
+
+void Server::doAccept(tcp::acceptor& acceptor) {
+    acceptor.async_accept(
+        [this, &acceptor](const boost::system::error_code& error, tcp::socket socket) {
+            if (!error) {
+				auto session = std::make_shared<ClientSession>(std::move(socket), *this);
+                {
+                    std::lock_guard<std::mutex> lock(clients_mutex);
+					std::cout << "New client connected" << std::endl;
+                    clients.push_back(session);
+                }
+                session->start();
+            }
+
+            doAccept(acceptor); // 다음 연결 대기
+        });
+}
+
+void Server::removeClient(std::shared_ptr<ClientSession> client) {
+    std::lock_guard<std::mutex> lock(clients_mutex);
+    clients.erase(
+        std::remove(clients.begin(), clients.end(), client),
+        clients.end());
 }

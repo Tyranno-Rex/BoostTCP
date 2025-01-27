@@ -8,6 +8,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <queue>
 #include <zlib.h>
 #include <mutex>
 #include "packet.hpp"
@@ -28,26 +29,89 @@ using tcp = net::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 #define expected_checksum 0x04
 #define expected_size 0x08
 
-extern std::map<std::string, std::map<std::string, std::string>> g_chatRooms;
+
+class MemoryPool {
+private:
+	std::queue<std::array<char, 150>> memory_blocks;
+    std::mutex pool_mutex;
+    std::condition_variable pool_cv;
+    size_t pool_size;
+
+public:
+    // 생성자에서 메모리 블록을 초기화합니다.
+    MemoryPool(size_t PoolSize) : pool_size(PoolSize) {
+        for (size_t i = 0; i < pool_size; i++) {
+			memory_blocks.push(std::array<char, 150>());
+        }
+    }
+
+    // 메모리 블록을 할당하여 반환
+	std::array<char, 150> acquire() {
+		std::unique_lock<std::mutex> lock(pool_mutex);
+		while (memory_blocks.empty()) {
+			pool_cv.wait(lock);  // 큐가 비었을 때 기다림
+		}
+		auto block = memory_blocks.front();
+		memory_blocks.pop();
+		return block;
+	}
+
+	// 메모리 블록을 반환
+	void release(std::array<char, 150>& block) {
+		std::lock_guard<std::mutex> lock(pool_mutex);
+		memset(block.data(), 0, block.size());
+		memory_blocks.push(block);  // 반환된 메모리 블록을 큐에 다시 넣기
+		pool_cv.notify_one();     // 대기 중인 스레드에게 알림
+	}
+};
+
+
+class ClientSession;
 
 class Server {
 private:
-    short port;
-    void handleRead(const boost::system::error_code& error, size_t bytes_transferred,
-        std::shared_ptr<tcp::socket> client_socket,
-        std::shared_ptr<std::array<char, 1024>> temp_buffer,
-        std::shared_ptr<PacketBuffer> packet_buffer);
-
-    boost::asio::io_context io_context;
-    std::vector<std::shared_ptr<tcp::socket>> clients;
+    boost::asio::io_context& io_context;
+    unsigned short port;
+    std::vector<std::shared_ptr<ClientSession>> clients;
     std::mutex clients_mutex;
 
 public:
-    Server(short port)
-        : port(port) {
+    Server(boost::asio::io_context& io_context, unsigned short port)
+        : io_context(io_context), port(port) {
     }
-	void handleAccept(std::shared_ptr<tcp::socket> client_socket, tcp::acceptor& acceptor);
-    void chatSession(std::shared_ptr<tcp::socket> client_socket);
+
     void chatRun();
-	short getPort() { return port; }
+    void doAccept(tcp::acceptor& acceptor);
+    void removeClient(std::shared_ptr<ClientSession> client);
 };
+
+// 클라이언트 세션을 관리하는 클래스
+class ClientSession : public std::enable_shared_from_this<ClientSession> {
+private:
+    tcp::socket socket;
+    Server& server;
+    std::array<char, 150> current_buffer;   // 현재 읽기용 버퍼
+    std::array<char, 150> packet_buffer;    // 패킷 조립용 버퍼
+    size_t packet_buffer_offset = 0;        // 패킷 버퍼의 현재 위치
+
+public:
+    //ClientSession(tcp::socket socket_, Server& server_)
+    //    : socket(std::move(socket_)), server(server_) {
+    //}
+
+	ClientSession(tcp::socket socket_, Server& server_)
+        : socket(std::move(socket_))
+		, server(server_) {
+    }
+
+    ~ClientSession() {
+    }
+
+    void start() {
+        doRead();
+    }
+private:
+    void doRead();
+	bool handlePacket(size_t bytes_transferred);
+};
+
