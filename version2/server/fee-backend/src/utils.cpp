@@ -9,11 +9,8 @@ std::string printMessageWithTime(const std::string& message, bool isDebug) {
         std::lock_guard<std::mutex> lock(cout_mutex);
         std::cout << message << std::endl;
         total_connection++;
-        if (total_connection % 1000 == 0) {
-            std::cout << "Total connection: " << total_connection << std::endl;
-        }
+        std::cout << "Total connection: " << total_connection << std::endl;
         return message;
-
     }
 
     // 현재 시간을 구한다.

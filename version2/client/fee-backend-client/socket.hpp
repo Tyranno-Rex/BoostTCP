@@ -1,6 +1,9 @@
 #pragma once
-
 #include "main.hpp"
+#include "socket.hpp"
+
+extern std::mutex cout_mutex;
+extern std::mutex command_mutex;
 
 // socket 관리 pool
 class SocketPool {
@@ -30,6 +33,8 @@ public:
         }
     }
 
+    ~SocketPool() {}
+
     // pool에서 socket을 가져온다.
     // 자료형은 shared_ptr<tcp::socket>로 tcp::socket을 가리키는 shared_ptr이다.
     std::shared_ptr<tcp::socket> acquire() {
@@ -57,7 +62,18 @@ public:
         cond_var_.notify_one();
     }
 
+
+	// pool에 있는 모든 socket을 받고 반환한다.
+	void close() {
+		// mutex를 사용하여 pool에 대한 동시성 제어
+		std::unique_lock<std::mutex> lock(mutex_);
+		// pool에 있는 모든 socket을 받고 반환한다.
+		while (!pool_.empty()) {
+			auto socket = pool_.front();
+			pool_.pop();
+			socket->close();
+		}
+	}
 };
 
 void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num);
-void handle_sockets2(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num);

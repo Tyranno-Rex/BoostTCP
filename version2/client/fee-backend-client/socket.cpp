@@ -39,18 +39,18 @@ void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::stri
                 boost::asio::write(*socket, boost::asio::buffer(&packet, sizeof(packet)));
 
 				//// 패킷을 헤더와 페이로드로 나누어 전송
-				size_t total_size = sizeof(packet);
-				size_t header_size = sizeof(packet.header);
-                // 첫 번째 부분 전송
-				boost::asio::write(*socket, boost::asio::buffer(&packet, header_size));
-				// 4개로 나누어 전송 (1/4)
-				boost::asio::write(*socket, boost::asio::buffer(packet.payload, sizeof(packet.payload) / 4));
-				// 4개로 나누어 전송 (2/4)
-				boost::asio::write(*socket, boost::asio::buffer(packet.payload + sizeof(packet.payload) / 4, sizeof(packet.payload) / 4));
-				// 4개로 나누어 전송 (3/4)
-				boost::asio::write(*socket, boost::asio::buffer(packet.payload + sizeof(packet.payload) / 2, sizeof(packet.payload) / 4));
-				// 4개로 나누어 전송 (4/4)
-				boost::asio::write(*socket, boost::asio::buffer(packet.payload + sizeof(packet.payload) / 4 * 3, sizeof(packet.payload) / 4 + 1));
+				//size_t total_size = sizeof(packet);
+				//size_t header_size = sizeof(packet.header);
+                //// 첫 번째 부분 전송
+				//boost::asio::write(*socket, boost::asio::buffer(&packet, header_size));
+				//// 4개로 나누어 전송 (1/4)
+				//boost::asio::write(*socket, boost::asio::buffer(packet.payload, sizeof(packet.payload) / 4));
+				//// 4개로 나누어 전송 (2/4)
+				//boost::asio::write(*socket, boost::asio::buffer(packet.payload + sizeof(packet.payload) / 4, sizeof(packet.payload) / 4));
+				//// 4개로 나누어 전송 (3/4)
+				//boost::asio::write(*socket, boost::asio::buffer(packet.payload + sizeof(packet.payload) / 2, sizeof(packet.payload) / 4));
+				//// 4개로 나누어 전송 (4/4)
+				//boost::asio::write(*socket, boost::asio::buffer(packet.payload + sizeof(packet.payload) / 4 * 3, sizeof(packet.payload) / 4 + 1));
 
                 // socket을 반환한다.
                 socket_pool.release(socket);

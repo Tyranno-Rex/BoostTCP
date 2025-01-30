@@ -23,7 +23,6 @@ namespace beast = boost::beast;
 namespace http = beast::http;
 using tcp = boost::asio::ip::tcp;
 
-
 enum class PacketType : uint8_t {
     defEchoString = 100,
     JH = 101,

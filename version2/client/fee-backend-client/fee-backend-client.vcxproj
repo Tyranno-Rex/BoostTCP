@@ -131,12 +131,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="command_handler.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="socket.cpp" />
+    <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="console_handler.hpp" />
     <ClInclude Include="main.hpp" />
     <ClInclude Include="socket.hpp" />
+    <ClInclude Include="utils.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
