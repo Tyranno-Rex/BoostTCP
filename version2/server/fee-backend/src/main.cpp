@@ -60,7 +60,7 @@ int main(void) {
         chatServer.chatStop();  
 
         // 스레드 정리
-		chatServer.stopThreadPool();
+        chatServer.stopThreadPool();
         if (consoleThread.joinable()) consoleThread.join();
         if (chatThread.joinable()) chatThread.join();
 
