@@ -49,7 +49,8 @@ void Server::consoleStop() {
 
 void Server::chatStop() {
 	for (auto& client : clients) {
-		//client->stop();
+		client->stop();
 	}
+    
 	io_context.stop();
 }

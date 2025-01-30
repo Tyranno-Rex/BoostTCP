@@ -39,9 +39,11 @@ public:
     void start() {
         doRead();
     }
+
+	void stop();
+
 private:
     void doRead();
     bool handlePacket(size_t bytes_transferred);
-	void stop();
 };
 

@@ -25,11 +25,22 @@ private:
 	size_t pool_size;
 
 public:
+	MemoryPool() {}
 	// 생성자에서 메모리 블록을 초기화합니다.
 	MemoryPool(size_t PoolSize) : pool_size(PoolSize) {
 		for (size_t i = 0; i < pool_size; i++) {
 			memory_blocks.push(std::array<char, 150>());
 		}
+	}
+
+	// 메모리 블록을 초기화합니다.
+	void init(size_t PoolSize) {
+		pool_size = PoolSize;
+		std::cout << "Memory pool init start" <<  std::endl;
+		for (size_t i = 0; i < pool_size; i++) {
+			memory_blocks.push(std::array<char, 150>());
+		}
+		std::cout << "Memory pool init end" << std::endl;
 	}
 
 	// 메모리 블록을 할당하여 반환
@@ -57,5 +68,7 @@ public:
 		while (!memory_blocks.empty()) {
 			memory_blocks.pop();
 		}
+		std::queue<std::array<char, 150>> empty_queue;
+		std::swap(memory_blocks, empty_queue);
 	}
 };
