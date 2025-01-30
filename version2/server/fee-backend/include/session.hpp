@@ -26,6 +26,7 @@ private:
     std::array<char, 150> current_buffer;   // 현재 읽기용 버퍼
     std::array<char, 150> packet_buffer;    // 패킷 조립용 버퍼
     size_t packet_buffer_offset = 0;        // 패킷 버퍼의 현재 위치
+    std::mutex packet_mutex;
 
 public:
     Session(tcp::socket socket_, Server& server_)
@@ -41,6 +42,7 @@ public:
     }
 
 	void stop();
+	void processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size);
 
 private:
     void doRead();

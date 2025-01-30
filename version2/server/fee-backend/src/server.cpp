@@ -8,8 +8,29 @@
 #include <chrono>
 #include <iomanip>
 
+
+void Server::initializeThreadPool() {
+    is_running = true;
+    size_t thread_count = std::thread::hardware_concurrency();
+
+    for (size_t i = 0; i < thread_count; ++i) {
+        worker_threads.emplace_back([this]() {
+			std::cout << "Worker thread started" << std::endl;
+            PacketTask task;
+            while (is_running) {
+                if (packet_queue.pop(task)) {
+                    if (auto session = task.session.lock()) {
+                        session->processPacketInWorker(task.data, task.size);
+                    }
+                }
+            }
+            });
+    }
+}
+
 void Server::chatRun() {
     try {
+        initializeThreadPool();
         tcp::acceptor acceptor(io_context,
             tcp::endpoint(tcp::v4(), port));
         doAccept(acceptor);

@@ -32,6 +32,81 @@ using tcp = net::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 #define expected_checksum 0x04
 #define expected_size 0x08
 
+
+struct PacketTask {
+    std::unique_ptr<std::vector<char>> data;
+    size_t size;
+    std::weak_ptr<Session> session;
+
+	PacketTask() = default;
+
+    PacketTask(std::vector<char>&& buffer, size_t s, std::shared_ptr<Session> sess)
+        : data(std::make_unique<std::vector<char>>(std::move(buffer)))
+        , size(s)
+        , session(sess) {
+    }
+
+    PacketTask(PacketTask&& other) noexcept
+        : data(std::move(other.data))
+        , size(other.size)
+        , session(other.session) {
+    }
+
+    PacketTask& operator=(PacketTask&& other) noexcept {
+        if (this != &other) {
+            data = std::move(other.data);
+            size = other.size;
+            session = other.session;
+        }
+        return *this;
+    }
+
+    PacketTask(const PacketTask&) = delete;
+    PacketTask& operator=(const PacketTask&) = delete;
+};
+
+class PacketQueue {
+private:
+    std::queue<PacketTask> tasks;
+    std::mutex mutex;
+    std::condition_variable condition;
+    bool stopping = false;
+    size_t max_queue_size = 1000;
+
+public:
+    bool push(PacketTask&& task) {
+        std::unique_lock<std::mutex> lock(mutex);
+        if (tasks.size() >= max_queue_size) {
+            return false;
+        }
+        tasks.push(std::move(task));
+        condition.notify_one();
+        return true;
+    }
+
+    bool pop(PacketTask& task) {
+        std::unique_lock<std::mutex> lock(mutex);
+        condition.wait(lock, [this] { return !tasks.empty() || stopping; });
+        if (stopping && tasks.empty()) return false;
+
+        task = std::move(tasks.front());
+        tasks.pop();
+        return true;
+    }
+
+    void stop() {
+        std::unique_lock<std::mutex> lock(mutex);
+        stopping = true;
+        condition.notify_all();
+    }
+
+    void clear() {
+        std::unique_lock<std::mutex> lock(mutex);
+        std::queue<PacketTask> empty;
+        tasks.swap(empty);
+    }
+};
+
 class Server {
 private:
     boost::asio::io_context& io_context;
@@ -39,9 +114,30 @@ private:
     std::vector<std::shared_ptr<Session>> clients;
     std::mutex clients_mutex;
 
+    std::vector<std::thread> worker_threads;
+    PacketQueue packet_queue;
+    std::atomic<bool> is_running{ false };
 public:
     Server(boost::asio::io_context& io_context, unsigned short port)
         : io_context(io_context), port(port) {
+    }
+
+    void initializeThreadPool();
+
+    void stopThreadPool() {
+        is_running = false;
+        packet_queue.stop();
+
+        for (auto& thread : worker_threads) {
+            if (thread.joinable()) {
+                thread.join();
+            }
+        }
+        worker_threads.clear();
+    }
+
+    PacketQueue& getPacketQueue() {
+        return packet_queue;
     }
 
     void chatRun();
