@@ -1,4 +1,10 @@
 #pragma once
+#include <array>
+#include <vector>
+#include <stdexcept>
+#include <memory>
+#include <openssl/evp.h>
+
 #include "main.hpp"
 
 extern std::queue<std::string> command_queue;

@@ -14,6 +14,7 @@ private:
     std::queue<std::shared_ptr<tcp::socket>> pool_;
     std::mutex mutex_;
     std::condition_variable cond_var_;
+	std::atomic<bool> is_closing_{ false };// pool이 닫히고 있는지 여부
 
 public:
     // 생성자에서 pool_size만큼 socket을 생성하여 pool에 넣는다.
@@ -33,7 +34,10 @@ public:
         }
     }
 
-    ~SocketPool() {}
+    ~SocketPool() {
+		std::cout << "SocketPool is destroyed" << std::endl;
+        close();
+    }
 
     // pool에서 socket을 가져온다.
     // 자료형은 shared_ptr<tcp::socket>로 tcp::socket을 가리키는 shared_ptr이다.
@@ -64,16 +68,31 @@ public:
 
 
 	// pool에 있는 모든 socket을 받고 반환한다.
-	void close() {
-		// mutex를 사용하여 pool에 대한 동시성 제어
-		std::unique_lock<std::mutex> lock(mutex_);
-		// pool에 있는 모든 socket을 받고 반환한다.
-		while (!pool_.empty()) {
-			auto socket = pool_.front();
-			pool_.pop();
-			socket->close();
-		}
-	}
+    void close() {
+        std::unique_lock<std::mutex> lock(mutex_);
+        if (is_closing_) return;  // 이미 종료 중이면 리턴
+
+        is_closing_ = true;
+        cond_var_.notify_all();  // 대기 중인 모든 스레드 깨우기
+
+        while (!pool_.empty()) {
+			std::cout << "SocketPool::close() - pool size: " << pool_.size() << std::endl;
+            auto socket = pool_.front();
+            pool_.pop();
+            try {
+                if (socket && socket->is_open()) {
+                    socket->close();
+                }
+            }
+            catch (...) {
+
+            }
+        }
+
+        if (!io_context_.stopped()) {
+            io_context_.stop();
+        }
+    }
 };
 
 void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num);
