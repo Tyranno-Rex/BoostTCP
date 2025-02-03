@@ -12,6 +12,7 @@
 #include <zlib.h>
 #include <mutex>
 #include "packet.hpp"
+#include <plog/Log.h>
 
 // Session 전방 선언
 class Session;
