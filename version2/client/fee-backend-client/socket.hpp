@@ -76,7 +76,6 @@ public:
         cond_var_.notify_all();  // 대기 중인 모든 스레드 깨우기
 
         while (!pool_.empty()) {
-			std::cout << "SocketPool::close() - pool size: " << pool_.size() << std::endl;
             auto socket = pool_.front();
             pool_.pop();
             try {
@@ -88,6 +87,10 @@ public:
 
             }
         }
+
+		if (pool_.empty()) {
+			std::cout << "All sockets are closed" << std::endl;
+		}
 
         if (!io_context_.stopped()) {
             io_context_.stop();

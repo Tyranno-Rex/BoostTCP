@@ -6,6 +6,7 @@
 extern std::mutex cout_mutex;
 extern std::mutex command_mutex;
 
+
 void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num) {
     try {
         for (int i = 0; i < connection_cnt; ++i) {
@@ -29,16 +30,42 @@ void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::stri
 				packet.header.size = static_cast<uint32_t>(sizeof(packet));
 
                 // checksum을 계산하여 header.checkSum에 저장
-                auto checksum = calculate_checksum(std::vector<char>(msg.begin(), msg.end()));
-                std::memcpy(packet.header.checkSum, checksum.data(), MD5_DIGEST_LENGTH);
+                //auto checksum = calculate_checksum(std::vector<char>(msg.begin(), msg.end()));
+				std::memcpy(packet.header.checkSum, "1234567890123456", 16);
 
                 // socket을 pool에서 가져온다.
                 auto socket = socket_pool.acquire();
                 
-                // socket을 통해 패킷을 한 번에 전송
+				// write를 통해서 패킷을 전송
                 boost::asio::write(*socket, boost::asio::buffer(&packet, sizeof(packet)));
+
+				// socket을 pool에 반환
+				socket_pool.release(socket);
+
+				//// 127.0.0.1:7777으로 연결
+				//boost::asio::io_context io_context;
+				//auto socket = std::make_shared<tcp::socket>(io_context);
+				//tcp::resolver resolver(io_context);
+				//auto endpoints = resolver.resolve("127.0.0.1", "7777");
+				//boost::asio::connect(*socket, endpoints);
+    //            
+				//// write를 통해서 패킷을 전송
+
+				//boost::asio::async_write(*socket, boost::asio::buffer(&packet, sizeof(packet)), [](const boost::system::error_code& ec, std::size_t) {
+				//	if (ec) {
+				//		std::lock_guard<std::mutex> lock(cout_mutex);
+				//		std::cerr << "Error writing to socket: " << ec.message() << std::endl;
+				//	}
+				//	});
+
+				//// io_context를 실행
+				//io_context.run();
+				//// io_context를 reset
+				//io_context.restart();
+				//// socket을 닫음
+				//socket->close();
+
                 // socket을 반환한다.
-                socket_pool.release(socket);
                 printMessageWithTime(msg, true);
             }
             catch (const std::exception& e) {

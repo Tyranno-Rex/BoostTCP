@@ -45,6 +45,10 @@ int main(void) {
         // Memory pool 초기화
         g_memory_pool.init(1000);
 
+		//plog 초기화
+        static plog::ConsoleAppender<plog::TxtFormatter> consoleAppender;
+		plog::init(plog::verbose, &consoleAppender);
+
         std::thread consoleThread(consoleInputHandler);
         std::thread chatThread([&chatServer]() {
             chatServer.chatRun();

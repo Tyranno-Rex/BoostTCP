@@ -19,6 +19,24 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
             
 			std::cout << "Enter the message 1 or /debug [thread_cnt] [connection_cnt] or /clear or /exit\n";
 			std::getline(std::cin, message);
+            if (message == "0") {
+                SocketPool socket_pool(io_context, host, port, 1);
+                message = "It is a .";
+                thread_cnt = 1;
+                connection_cnt = 1;
+
+                if (message.size() > 128) {
+                    message = message.substr(0, 128);
+                }
+
+                boost::asio::thread_pool pool(thread_cnt);
+                for (int i = 0; i < thread_cnt; ++i) {
+                    boost::asio::post(pool, [&socket_pool, connection_cnt, message, i]() {
+                        handle_sockets(socket_pool, connection_cnt, message, i);
+                        });
+                }
+                pool.join();
+            }
             if (message == "1") {
                 SocketPool socket_pool(io_context, host, port, 100);
                 message = "It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.However lit...";
@@ -118,13 +136,14 @@ int main(int argc, char* argv[]) {
     }
     try {
         boost::asio::io_context io_context;
-        std::thread writeThread(write_messages, std::ref(io_context), host, chat_port);
+        //std::thread writeThread(write_messages, std::ref(io_context), host, chat_port);
+
+		write_messages(io_context, host, chat_port);
 
 		while (is_running) {
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
 
-        writeThread.join();
 		io_context.stop();
     }
     catch (std::exception& e) {

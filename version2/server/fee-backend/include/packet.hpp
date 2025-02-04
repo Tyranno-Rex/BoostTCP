@@ -24,8 +24,8 @@ struct PacketTail {
 };
 
 struct Packet {
-    PacketHeader header;
-    char payload[128];
-    PacketTail tail;              // รั 
+	PacketHeader header; // size = 21
+	char payload[128];   // size = 128
+	PacketTail tail;    // size = 1
 };
 #pragma pack(pop)

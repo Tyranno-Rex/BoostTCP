@@ -15,7 +15,8 @@ void Server::initializeThreadPool() {
 
     for (size_t i = 0; i < thread_count; ++i) {
         worker_threads.emplace_back([this]() {
-			std::cout << "Worker thread started" << std::endl;
+			//std::cout << "Worker thread started" << std::endl;
+			LOGI << "Worker thread started";
             PacketTask task;
             while (is_running) {
                 if (packet_queue.pop(task)) {

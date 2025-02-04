@@ -3,49 +3,49 @@
 extern std::mutex cout_mutex;
 extern std::mutex command_mutex;
 
-std::array<unsigned char, MD5_DIGEST_LENGTH> calculate_checksum(const std::vector<char>& data) {
-    std::array<unsigned char, MD5_DIGEST_LENGTH> checksum{};
-
-    // RAII를 위한 unique_ptr과 커스텀 deleter 사용
-    struct EVP_MD_CTX_Deleter {
-        void operator()(EVP_MD_CTX* ctx) {
-            if (ctx) EVP_MD_CTX_free(ctx);
-        }
-    };
-
-    // unique_ptr을 사용하여 자동 메모리 관리
-    std::unique_ptr<EVP_MD_CTX, EVP_MD_CTX_Deleter> mdctx(EVP_MD_CTX_new());
-    if (!mdctx) {
-        throw std::runtime_error("Failed to create EVP_MD_CTX");
-    }
-
-    // MD5 컨텍스트 초기화
-    const EVP_MD* md = EVP_md5();
-    if (!md) {
-        throw std::runtime_error("Failed to get MD5 algorithm");
-    }
-
-    if (EVP_DigestInit_ex(mdctx.get(), md, nullptr) != 1) {
-        throw std::runtime_error("Failed to initialize digest");
-    }
-
-    // 데이터 업데이트
-    if (EVP_DigestUpdate(mdctx.get(), data.data(), data.size()) != 1) {
-        throw std::runtime_error("Failed to update digest");
-    }
-
-    // 다이제스트 완료
-    unsigned int length = 0;
-    if (EVP_DigestFinal_ex(mdctx.get(), checksum.data(), &length) != 1) {
-        throw std::runtime_error("Failed to finalize digest");
-    }
-
-    if (length != MD5_DIGEST_LENGTH) {
-        throw std::runtime_error("Unexpected digest length");
-    }
-
-    return checksum;
-}
+//std::array<unsigned char, MD5_DIGEST_LENGTH> calculate_checksum(const std::vector<char>& data) {
+//    std::array<unsigned char, MD5_DIGEST_LENGTH> checksum{};
+//
+//    // RAII를 위한 unique_ptr과 커스텀 deleter 사용
+//    struct EVP_MD_CTX_Deleter {
+//        void operator()(EVP_MD_CTX* ctx) {
+//            if (ctx) EVP_MD_CTX_free(ctx);
+//        }
+//    };
+//
+//    // unique_ptr을 사용하여 자동 메모리 관리
+//    std::unique_ptr<EVP_MD_CTX, EVP_MD_CTX_Deleter> mdctx(EVP_MD_CTX_new());
+//    if (!mdctx) {
+//        throw std::runtime_error("Failed to create EVP_MD_CTX");
+//    }
+//
+//    // MD5 컨텍스트 초기화
+//    const EVP_MD* md = EVP_md5();
+//    if (!md) {
+//        throw std::runtime_error("Failed to get MD5 algorithm");
+//    }
+//
+//    if (EVP_DigestInit_ex(mdctx.get(), md, nullptr) != 1) {
+//        throw std::runtime_error("Failed to initialize digest");
+//    }
+//
+//    // 데이터 업데이트
+//    if (EVP_DigestUpdate(mdctx.get(), data.data(), data.size()) != 1) {
+//        throw std::runtime_error("Failed to update digest");
+//    }
+//
+//    // 다이제스트 완료
+//    unsigned int length = 0;
+//    if (EVP_DigestFinal_ex(mdctx.get(), checksum.data(), &length) != 1) {
+//        throw std::runtime_error("Failed to finalize digest");
+//    }
+//
+//    if (length != MD5_DIGEST_LENGTH) {
+//        throw std::runtime_error("Unexpected digest length");
+//    }
+//
+//    return checksum;
+//}
 
 //std::array<unsigned char, MD5_DIGEST_LENGTH> calculate_checksum(const std::vector<char>& data) {
 //    std::array<unsigned char, MD5_DIGEST_LENGTH> checksum;

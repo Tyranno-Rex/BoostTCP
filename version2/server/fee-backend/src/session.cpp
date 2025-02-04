@@ -1,6 +1,8 @@
 #include "../include/session.hpp"
 #include "../include/utils.hpp"
 #include "../include/memory_pool.hpp"
+#include <plog/Log.h>
+#include <plog/Appenders/ConsoleAppender.h>
 
 extern MemoryPool g_memory_pool;
 
@@ -54,14 +56,14 @@ void Session::processPacketInWorker(std::unique_ptr<std::vector<char>>& data, si
         // 체크섬 검증
         std::vector<char> payload_data(packet->payload,
             packet->payload + sizeof(packet->payload));
-        auto calculated_checksum = calculate_checksum(payload_data);
+       /* auto calculated_checksum = calculate_checksum(payload_data);
         if (std::memcmp(packet->header.checkSum,
             calculated_checksum.data(),
             MD5_DIGEST_LENGTH) != 0) {
             std::cerr << "Checksum validation failed" << std::endl;
             packet_buffer_offset = 0;
             return;
-        }
+        }*/
 
         // tail 값 검증
         if (packet->tail.value != 255) {
