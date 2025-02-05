@@ -36,11 +36,11 @@ public:
 	// 메모리 블록을 초기화합니다.
 	void init(size_t PoolSize) {
 		pool_size = PoolSize;
-		std::cout << "Memory pool init start" <<  std::endl;
+		LOGI << "Memory pool init start";
 		for (size_t i = 0; i < pool_size; i++) {
 			memory_blocks.push(std::array<char, 150>());
 		}
-		std::cout << "Memory pool init end" << std::endl;
+		LOGI << "Memory pool init end";
 	}
 
 	// 메모리 블록을 할당하여 반환

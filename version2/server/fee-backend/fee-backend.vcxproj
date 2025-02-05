@@ -23,7 +23,6 @@
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{302b3f67-99ea-4a55-afa9-d62fcfbcbcd7}</ProjectGuid>
     <RootNamespace>feebackend</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <ProjectName>boostChat-server</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -105,13 +104,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\library\boost_1_86_0;C:\Program Files\PostgreSQL\17\include;C:\library\DEV\vcpkg\installed\x64-windows\include;C:\Users\eunseong\library\boost_1_86_0;C:\Users\eunseong\library\vcpkg\installed\x64-windows\include;C:\Users\eunseong\library\boost_1_86_0\bin.v2;.\plog\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\library\boost_1_86_0;C:\Program Files\PostgreSQL\17\include;C:\library\DEV\vcpkg\installed\x64-windows\include;C:\Users\eunseong\library\boost_1_86_0;C:\Users\eunseong\library\vcpkg\installed\x64-windows\include;C:\Users\eunseong\library\boost_1_86_0\bin.v2;..\..\library\plog\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\library\boost_1_86_0\libs;C:\library\boost_1_86_0\stage\lib;C:\Program Files\PostgreSQL\17\lib;C:\library\DEV\vcpkg\installed\x64-windows\lib;C:\Users\eunseong\library\boost_1_86_0\libs;C:\Users\eunseong\library\vcpkg\installed\x64-windows\lib;C:\Users\eunseong\library\boost_1_86_0\stage\lib;.\plog\include</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\library\boost_1_86_0\libs;C:\library\boost_1_86_0\stage\lib;C:\Program Files\PostgreSQL\17\lib;C:\library\DEV\vcpkg\installed\x64-windows\lib;C:\Users\eunseong\library\boost_1_86_0\libs;C:\Users\eunseong\library\vcpkg\installed\x64-windows\lib;C:\Users\eunseong\library\boost_1_86_0\stage\lib;..\..\library\plog\include</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

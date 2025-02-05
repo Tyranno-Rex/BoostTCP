@@ -29,6 +29,7 @@ void Session::doRead() {
             }
             else {
                 std::cerr << "Client disconnected" << std::endl;
+				LOGI << "Client disconnected";
                 g_memory_pool.release(current_buffer);
                 stop();
                 server.removeClient(self);
@@ -40,7 +41,7 @@ void Session::processPacketInWorker(std::unique_ptr<std::vector<char>>& data, si
     std::lock_guard<std::mutex> lock(packet_mutex);
 
     if (packet_buffer_offset + size > packet_buffer.size()) {
-        std::cerr << "Buffer overflow" << std::endl;
+		LOGE << "Buffer overflow";
         packet_buffer_offset = 0;
         return;
     }
@@ -56,25 +57,26 @@ void Session::processPacketInWorker(std::unique_ptr<std::vector<char>>& data, si
         // 체크섬 검증
         std::vector<char> payload_data(packet->payload,
             packet->payload + sizeof(packet->payload));
-       /* auto calculated_checksum = calculate_checksum(payload_data);
+        auto calculated_checksum = calculate_checksum(payload_data);
         if (std::memcmp(packet->header.checkSum,
             calculated_checksum.data(),
             MD5_DIGEST_LENGTH) != 0) {
-            std::cerr << "Checksum validation failed" << std::endl;
+			LOGE << "Checksum validation failed";
             packet_buffer_offset = 0;
             return;
-        }*/
+        }
 
         // tail 값 검증
         if (packet->tail.value != 255) {
-            std::cerr << "Invalid tail value" << std::endl;
+			LOGE << "Invalid tail value";
             packet_buffer_offset = 0;
             return;
         }
 
         // 메시지 처리
         std::string message(packet->payload, sizeof(packet->payload));
-		printMessageWithTime(message, true);
+		//printMessageWithTime(message, true);
+		LOGI << message;
 
         // 처리된 패킷 제거
         if (packet_buffer_offset > sizeof(Packet)) {

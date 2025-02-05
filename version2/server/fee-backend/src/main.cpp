@@ -24,8 +24,12 @@ void consoleInputHandler() {
             running = false;  
             return;  
         }
+		if (command == "clear") {
+			system("cls");
+		}
         else {
-            std::cout << "Unknown command" << std::endl;
+			LOGE << "Unknown command";
+            //std::cout << "Unknown command" << std::endl;
         }
     }
 }
@@ -37,7 +41,7 @@ int main(void) {
     HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
 #endif
     try {
-        std::cout << "Server start" << std::endl;
+		LOGE << "Server start";
         boost::asio::io_context io_context;
         Server chatServer(io_context, 7777);
         Server consoleServer(io_context, 7778);
@@ -46,7 +50,8 @@ int main(void) {
         g_memory_pool.init(1000);
 
 		//plog 초기화
-        static plog::ConsoleAppender<plog::TxtFormatter> consoleAppender;
+        //static plog::ConsoleAppender<plog::TxtFormatter> consoleAppender;
+		static plog::ColorConsoleAppender<plog::TxtFormatter> consoleAppender;
 		plog::init(plog::verbose, &consoleAppender);
 
         std::thread consoleThread(consoleInputHandler);
@@ -76,5 +81,5 @@ int main(void) {
         std::cerr << "Error: " << e.what() << std::endl;
     }
 
-    return 0;  // exit(0) 대신 자연스러운 종료
+    return 0; 
 }
