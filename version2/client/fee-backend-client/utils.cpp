@@ -1,7 +1,23 @@
 #include "utils.hpp"
 
+
 extern std::mutex cout_mutex;
 extern std::mutex command_mutex;
+
+std::array<unsigned char, CryptoPP::MD5::DIGESTSIZE> calculate_checksum(const std::vector<char>& data) {
+    std::array<unsigned char, CryptoPP::MD5::DIGESTSIZE> checksum;
+
+    try {
+        CryptoPP::MD5 hash;
+        hash.CalculateDigest(checksum.data(), reinterpret_cast<const unsigned char*>(data.data()), data.size());
+    }
+    catch (const CryptoPP::Exception& e) {
+        throw std::runtime_error(std::string("MD5 calculation failed: ") + e.what());
+    }
+
+    return checksum;
+}
+
 
 //std::array<unsigned char, MD5_DIGEST_LENGTH> calculate_checksum(const std::vector<char>& data) {
 //    std::array<unsigned char, MD5_DIGEST_LENGTH> checksum{};

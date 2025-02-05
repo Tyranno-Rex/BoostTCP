@@ -1,13 +1,17 @@
 #include "main.hpp"
 #include "socket.hpp"
 
-int total_connection = 0;
+//int total_connection = 0;
 const char expected_hcv = 0x02;
 const char expected_tcv = 0x03;
 std::mutex cout_mutex;
 std::mutex command_mutex;
 
 std::atomic<bool> is_running = true;
+
+int total_send_cnt = 0;
+int total_send_success_cnt = 0;
+int total_send_fail_cnt = 0;
 
 void write_messages(boost::asio::io_context& io_context, const std::string& host, const std::string& port) {
     try {
@@ -16,7 +20,15 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
             std::string message;
             int thread_cnt, connection_cnt;
             int cnt = 0;
-            
+
+
+            LOGI << "Total send: " << 1000 * 10;
+            LOGI << "Total send success: " << total_send_success_cnt;
+            LOGI << "Total send fail: " << total_send_fail_cnt;
+
+			total_send_cnt = 0;
+			total_send_success_cnt = 0;
+			total_send_fail_cnt = 0;
 			std::cout << "Enter the message 1 or /debug [thread_cnt] [connection_cnt] or /clear or /exit\n";
 			std::getline(std::cin, message);
             if (message == "0") {
@@ -107,8 +119,7 @@ int main(int argc, char* argv[]) {
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
     HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
-    //_CrtSetBreakAlloc(2836);
-    atexit([] { _CrtDumpMemoryLeaks(); });
+ //   _CrtSetBreakAlloc(3162);
 
     std::string host;
     std::string chat_port;
@@ -136,7 +147,10 @@ int main(int argc, char* argv[]) {
     }
     try {
         boost::asio::io_context io_context;
-        //std::thread writeThread(write_messages, std::ref(io_context), host, chat_port);
+
+        //static plog::ConsoleAppender<plog::TxtFormatter> consoleAppender;
+		static plog::ColorConsoleAppender<plog::TxtFormatter> consoleAppender;
+        plog::init(plog::verbose, &consoleAppender);
 
 		write_messages(io_context, host, chat_port);
 

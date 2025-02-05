@@ -19,6 +19,14 @@
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 
+#include <plog/Log.h>
+#include <plog/init.h>
+#include <plog/Formatters/TxtFormatter.h>
+#include <plog/Appenders/ConsoleAppender.h>
+#include <plog/Appenders/RollingFileAppender.h>
+#include <plog/Appenders/ColorConsoleAppender.h>
+#include <plog/Appenders/DebugOutputAppender.h>
+
 namespace beast = boost::beast;
 namespace http = beast::http;
 using tcp = boost::asio::ip::tcp;
