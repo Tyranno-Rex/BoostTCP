@@ -4,15 +4,7 @@ int total_connection = 0;
 std::mutex cout_mutex;
 std::mutex command_mutex;
 
-std::string printMessageWithTime(const std::string& message, bool isDebug) {
-    if (isDebug) {
-        std::lock_guard<std::mutex> lock(cout_mutex);
-        std::cout << message << std::endl;
-        total_connection++;
-        std::cout << "Total connection: " << total_connection << std::endl;
-        return message;
-    }
-
+std::string printMessageWithTime(const std::string& message) {
     // 현재 시간을 구한다.
     auto now = std::chrono::system_clock::now();
     auto duration = now.time_since_epoch();

@@ -8,6 +8,17 @@
 #include <chrono>
 #include <iomanip>
 
+extern int JH_recv_packet_total_cnt;
+extern int JY_recv_packet_success_cnt;
+extern int JY_recv_packet_fail_cnt;
+
+extern int YJ_recv_packet_total_cnt;
+extern int YJ_recv_packet_success_cnt;
+extern int YJ_recv_packet_fail_cnt;
+
+extern int ES_recv_packet_total_cnt;
+extern int ES_recv_packet_success_cnt;
+extern int ES_recv_packet_fail_cnt;
 
 void Server::initializeThreadPool() {
     is_running = true;
@@ -15,7 +26,6 @@ void Server::initializeThreadPool() {
 
     for (size_t i = 0; i < thread_count; ++i) {
         worker_threads.emplace_back([this]() {
-			//std::cout << "Worker thread started" << std::endl;
 			LOGI << "Worker thread started";
             PacketTask task;
             while (is_running) {
@@ -49,7 +59,7 @@ void Server::doAccept(tcp::acceptor& acceptor) {
 				auto session = std::make_shared<Session>(std::move(socket), *this);
                 {
                     std::lock_guard<std::mutex> lock(clients_mutex);
-					std::cout << "New client connected" << std::endl;
+					LOGI << "New client connected";
                     clients.push_back(session);
                 }
                 session->start();

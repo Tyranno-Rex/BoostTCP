@@ -29,7 +29,7 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
 			total_send_cnt = 0;
 			total_send_success_cnt = 0;
 			total_send_fail_cnt = 0;
-			std::cout << "Enter the message 1 or /debug [thread_cnt] [connection_cnt] or /clear or /exit\n";
+			std::cout << "Enter the message 1 or /debug [thread_cnt] [connection_cnt] or /clear or /exit (wrong input will exit the program)\n";
 			std::getline(std::cin, message);
             if (message == "0") {
                 SocketPool socket_pool(io_context, host, port, 1);

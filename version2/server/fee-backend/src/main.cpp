@@ -15,6 +15,17 @@
 std::atomic<bool> running(true);
 MemoryPool g_memory_pool;
 
+int JH_recv_packet_total_cnt = 0;
+int JY_recv_packet_success_cnt = 0;
+int JY_recv_packet_fail_cnt = 0;
+
+int YJ_recv_packet_total_cnt = 0;
+int YJ_recv_packet_success_cnt = 0;
+int YJ_recv_packet_fail_cnt = 0;
+
+int ES_recv_packet_total_cnt = 0;
+int ES_recv_packet_success_cnt = 0;
+int ES_recv_packet_fail_cnt = 0;
 
 void consoleInputHandler() {
     std::string command;
@@ -29,8 +40,17 @@ void consoleInputHandler() {
 		}
         else {
 			LOGE << "Unknown command";
-            //std::cout << "Unknown command" << std::endl;
         }
+    }
+}
+
+void monitorManager() {
+	while (running) {
+		std::this_thread::sleep_for(std::chrono::seconds(5));
+		LOGI << "JH: " << JH_recv_packet_total_cnt << " / " << JY_recv_packet_success_cnt << " / " << JY_recv_packet_fail_cnt << " success rate: " << (double)JY_recv_packet_success_cnt / JH_recv_packet_total_cnt * 100 << "%";
+		LOGI << "YJ: " << YJ_recv_packet_total_cnt << " / " << YJ_recv_packet_success_cnt << " / " << YJ_recv_packet_fail_cnt << " success rate: " << (double)YJ_recv_packet_success_cnt / YJ_recv_packet_total_cnt * 100 << "%";
+		LOGI << "ES: " << ES_recv_packet_total_cnt << " / " << ES_recv_packet_success_cnt << " / " << ES_recv_packet_fail_cnt << " success rate: " << (double)ES_recv_packet_success_cnt / ES_recv_packet_total_cnt * 100 << "%";
+		LOGI << "\n\n";
     }
 }
 
@@ -47,7 +67,7 @@ int main(void) {
         Server consoleServer(io_context, 7778);
 
         // Memory pool 초기화
-        g_memory_pool.init(1000);
+        g_memory_pool.init(100000);
 
 		//plog 초기화
         //static plog::ConsoleAppender<plog::TxtFormatter> consoleAppender;
@@ -55,6 +75,7 @@ int main(void) {
 		plog::init(plog::verbose, &consoleAppender);
 
         std::thread consoleThread(consoleInputHandler);
+		std::thread monitorThread(monitorManager);
         std::thread chatThread([&chatServer]() {
             chatServer.chatRun();
             });
@@ -66,15 +87,15 @@ int main(void) {
 
         // 서버 종료 처리
         consoleServer.consoleStop();
-        chatServer.chatStop();  
+        chatServer.chatStop();
 
         // 스레드 정리
         chatServer.stopThreadPool();
         if (consoleThread.joinable()) consoleThread.join();
         if (chatThread.joinable()) chatThread.join();
+		if (monitorThread.joinable()) monitorThread.join();
 
-
-        std::cout << "Server shutting down" << std::endl;
+		LOGI << "Server shutting down";
         io_context.stop();  // Boost.Asio 종료
     }
     catch (std::exception& e) {

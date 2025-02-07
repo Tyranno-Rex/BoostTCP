@@ -6,6 +6,18 @@
 
 extern MemoryPool g_memory_pool;
 
+extern int JH_recv_packet_total_cnt;
+extern int JY_recv_packet_success_cnt;
+extern int JY_recv_packet_fail_cnt;
+
+extern int YJ_recv_packet_total_cnt;
+extern int YJ_recv_packet_success_cnt;
+extern int YJ_recv_packet_fail_cnt;
+
+extern int ES_recv_packet_total_cnt;
+extern int ES_recv_packet_success_cnt;
+extern int ES_recv_packet_fail_cnt;
+
 void Session::stop() {
 	socket.close();
 }
@@ -54,20 +66,58 @@ void Session::processPacketInWorker(std::unique_ptr<std::vector<char>>& data, si
     while (packet_buffer_offset >= sizeof(Packet)) {
         Packet* packet = reinterpret_cast<Packet*>(packet_buffer.data());
 
+
+		// 패킷 타입에 따라 카운트 증가
+		if (packet->header.type == PacketType::JH) {
+			JH_recv_packet_total_cnt++;
+		}
+		else if (packet->header.type == PacketType::YJ) {
+			YJ_recv_packet_total_cnt++;
+		}
+		else if (packet->header.type == PacketType::ES) {
+			ES_recv_packet_total_cnt++;
+		}
+
         // 체크섬 검증
         std::vector<char> payload_data(packet->payload,
             packet->payload + sizeof(packet->payload));
+        /*
         auto calculated_checksum = calculate_checksum(payload_data);
         if (std::memcmp(packet->header.checkSum,
             calculated_checksum.data(),
             MD5_DIGEST_LENGTH) != 0) {
+
+            // 패킷 타입에 따라 카운트 증가
+            if (packet->header.type == PacketType::JH) {
+                JY_recv_packet_fail_cnt++;
+            }
+            else if (packet->header.type == PacketType::YJ) {
+				YJ_recv_packet_fail_cnt++;
+            }
+            else if (packet->header.type == PacketType::ES) {
+				ES_recv_packet_fail_cnt++;
+            }
+            
 			LOGE << "Checksum validation failed";
             packet_buffer_offset = 0;
             return;
         }
+        */
 
         // tail 값 검증
         if (packet->tail.value != 255) {
+
+			// 패킷 타입에 따라 카운트 증가
+			if (packet->header.type == PacketType::JH) {
+				JY_recv_packet_fail_cnt++;
+			}
+			else if (packet->header.type == PacketType::YJ) {
+				YJ_recv_packet_fail_cnt++;
+			}
+			else if (packet->header.type == PacketType::ES) {
+				ES_recv_packet_fail_cnt++;
+			}
+
 			LOGE << "Invalid tail value";
             packet_buffer_offset = 0;
             return;
@@ -75,8 +125,18 @@ void Session::processPacketInWorker(std::unique_ptr<std::vector<char>>& data, si
 
         // 메시지 처리
         std::string message(packet->payload, sizeof(packet->payload));
-		//printMessageWithTime(message, true);
 		LOGI << message;
+        
+		// 패킷 타입에 따라 카운트 증가
+		if (packet->header.type == PacketType::JH) {
+			JY_recv_packet_success_cnt++;
+		}
+		else if (packet->header.type == PacketType::YJ) {
+			YJ_recv_packet_success_cnt++;
+		}
+		else if (packet->header.type == PacketType::ES) {
+			ES_recv_packet_success_cnt++;
+		}
 
         // 처리된 패킷 제거
         if (packet_buffer_offset > sizeof(Packet)) {

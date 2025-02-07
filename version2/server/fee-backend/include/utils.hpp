@@ -12,5 +12,5 @@
 #include <sstream>
 
 
-std::string printMessageWithTime(const std::string& message, bool isDebug);
+std::string printMessageWithTime(const std::string& message);
 std::array<unsigned char, MD5_DIGEST_LENGTH> calculate_checksum(const std::vector<char>& data);
