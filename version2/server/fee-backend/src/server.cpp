@@ -8,17 +8,17 @@
 #include <chrono>
 #include <iomanip>
 
-extern int JH_recv_packet_total_cnt;
-extern int JY_recv_packet_success_cnt;
-extern int JY_recv_packet_fail_cnt;
+extern std::atomic<int> JH_recv_packet_total_cnt;
+extern std::atomic<int> JY_recv_packet_success_cnt;
+extern std::atomic<int> JY_recv_packet_fail_cnt;
 
-extern int YJ_recv_packet_total_cnt;
-extern int YJ_recv_packet_success_cnt;
-extern int YJ_recv_packet_fail_cnt;
+extern std::atomic<int> YJ_recv_packet_total_cnt;
+extern std::atomic<int> YJ_recv_packet_success_cnt;
+extern std::atomic<int> YJ_recv_packet_fail_cnt;
 
-extern int ES_recv_packet_total_cnt;
-extern int ES_recv_packet_success_cnt;
-extern int ES_recv_packet_fail_cnt;
+extern std::atomic<int> ES_recv_packet_total_cnt;
+extern std::atomic<int> ES_recv_packet_success_cnt;
+extern std::atomic<int> ES_recv_packet_fail_cnt;
 
 void Server::initializeThreadPool() {
     is_running = true;

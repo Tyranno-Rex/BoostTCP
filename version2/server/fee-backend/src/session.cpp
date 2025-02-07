@@ -6,17 +6,26 @@
 
 extern MemoryPool g_memory_pool;
 
-extern int JH_recv_packet_total_cnt;
-extern int JY_recv_packet_success_cnt;
-extern int JY_recv_packet_fail_cnt;
+extern std::atomic<int>
+JH_recv_packet_total_cnt;
+extern std::atomic<int>
+ JY_recv_packet_success_cnt;
+extern std::atomic<int>
+ JY_recv_packet_fail_cnt;
 
-extern int YJ_recv_packet_total_cnt;
-extern int YJ_recv_packet_success_cnt;
-extern int YJ_recv_packet_fail_cnt;
+extern std::atomic<int>
+ YJ_recv_packet_total_cnt;
+extern std::atomic<int>
+ YJ_recv_packet_success_cnt;
+extern std::atomic<int>
+ YJ_recv_packet_fail_cnt;
 
-extern int ES_recv_packet_total_cnt;
-extern int ES_recv_packet_success_cnt;
-extern int ES_recv_packet_fail_cnt;
+extern std::atomic<int>
+ ES_recv_packet_total_cnt;
+extern std::atomic<int>
+ ES_recv_packet_success_cnt;
+extern std::atomic<int>
+ ES_recv_packet_fail_cnt;
 
 void Session::stop() {
 	socket.close();
@@ -76,7 +85,10 @@ void Session::processPacketInWorker(std::unique_ptr<std::vector<char>>& data, si
 		}
 		else if (packet->header.type == PacketType::ES) {
 			ES_recv_packet_total_cnt++;
-		}
+        }
+        else {
+			LOGI << "Unknown packet type";
+        }
 
         // 眉农级 八刘
         std::vector<char> payload_data(packet->payload,
@@ -137,6 +149,10 @@ void Session::processPacketInWorker(std::unique_ptr<std::vector<char>>& data, si
 		else if (packet->header.type == PacketType::ES) {
 			ES_recv_packet_success_cnt++;
 		}
+
+        if (ES_recv_packet_success_cnt > ES_recv_packet_total_cnt) {
+			LOGE << "ES success count is greater than total count";
+        }
 
         // 贸府等 菩哦 力芭
         if (packet_buffer_offset > sizeof(Packet)) {

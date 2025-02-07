@@ -15,17 +15,17 @@
 std::atomic<bool> running(true);
 MemoryPool g_memory_pool;
 
-int JH_recv_packet_total_cnt = 0;
-int JY_recv_packet_success_cnt = 0;
-int JY_recv_packet_fail_cnt = 0;
+std::atomic<int> JH_recv_packet_total_cnt = 0;
+std::atomic<int> JY_recv_packet_success_cnt = 0;
+std::atomic<int> JY_recv_packet_fail_cnt = 0;
 
-int YJ_recv_packet_total_cnt = 0;
-int YJ_recv_packet_success_cnt = 0;
-int YJ_recv_packet_fail_cnt = 0;
+std::atomic<int> YJ_recv_packet_total_cnt = 0;
+std::atomic<int> YJ_recv_packet_success_cnt = 0;
+std::atomic<int> YJ_recv_packet_fail_cnt = 0;
 
-int ES_recv_packet_total_cnt = 0;
-int ES_recv_packet_success_cnt = 0;
-int ES_recv_packet_fail_cnt = 0;
+std::atomic<int> ES_recv_packet_total_cnt = 0;
+std::atomic<int> ES_recv_packet_success_cnt = 0;
+std::atomic<int> ES_recv_packet_fail_cnt = 0;
 
 void consoleInputHandler() {
     std::string command;
@@ -49,8 +49,7 @@ void monitorManager() {
 		std::this_thread::sleep_for(std::chrono::seconds(5));
 		LOGI << "JH: " << JH_recv_packet_total_cnt << " / " << JY_recv_packet_success_cnt << " / " << JY_recv_packet_fail_cnt << " success rate: " << (double)JY_recv_packet_success_cnt / JH_recv_packet_total_cnt * 100 << "%";
 		LOGI << "YJ: " << YJ_recv_packet_total_cnt << " / " << YJ_recv_packet_success_cnt << " / " << YJ_recv_packet_fail_cnt << " success rate: " << (double)YJ_recv_packet_success_cnt / YJ_recv_packet_total_cnt * 100 << "%";
-		LOGI << "ES: " << ES_recv_packet_total_cnt << " / " << ES_recv_packet_success_cnt << " / " << ES_recv_packet_fail_cnt << " success rate: " << (double)ES_recv_packet_success_cnt / ES_recv_packet_total_cnt * 100 << "%";
-		LOGI << "\n\n";
+		LOGI << "ES: " << ES_recv_packet_total_cnt << " / " << ES_recv_packet_success_cnt << " / " << ES_recv_packet_fail_cnt << " success rate: " << (double)ES_recv_packet_success_cnt / ES_recv_packet_total_cnt * 100 << "%\n\n";
     }
 }
 
