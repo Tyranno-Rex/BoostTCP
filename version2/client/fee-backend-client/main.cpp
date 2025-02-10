@@ -53,7 +53,7 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                 SocketPool socket_pool(io_context, host, port, 100);
                 message = "It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.However lit...";
                 thread_cnt = 10;
-                connection_cnt = 1000;
+                connection_cnt = 10000;
 
                 if (message.size() > 128) {
                     message = message.substr(0, 128);
@@ -115,50 +115,75 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
     }
 }
 
+#include <windows.h>
+#include <string>
+
+// Convert a narrow string to a wide string
+std::wstring stringToWString(const std::string& str) {
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
+    std::wstring wstrTo(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
+    return wstrTo;
+}
+
 int main(int argc, char* argv[]) {
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
     HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
- //   _CrtSetBreakAlloc(3162);
 
     std::string host;
     std::string chat_port;
     std::string number;
 
-	std::cout << "Enter the address:\n1. JH server\n2. YJ server\n3. ES server\n";
+    wchar_t cBuf[1024] = { 0 }; // 초기화
+    memset(cBuf, 0, 1024);
+
+    std::cout << "Enter the address:\n1. JH server\n2. YJ server\n3. ES server\n";
     std::getline(std::cin, number);
 
+    std::wstring section = stringToWString("SERVER");
+    std::wstring key;
     if (number == "1") {
-        host = "192.168.20.241";
-        chat_port = "7777";
+        key = stringToWString("JH");
     }
     else if (number == "2") {
-        host = "192.168.20.158";
-        chat_port = "7777";
+        key = stringToWString("YJ");
     }
     else if (number == "3") {
-        host = "192.168.21.96";
-        chat_port = "7777";
+        key = stringToWString("ES");
     }
     else {
-        host = "127.0.0.1";
-        chat_port = "7777";
+        key = stringToWString("Default");
         std::cout << "Invalid input. Using default(local) address.\n";
     }
+    std::wstring file_path = stringToWString(".\\config.ini");
+    std::wstring default_value = stringToWString(".");
+
+    GetPrivateProfileString(section.c_str(), key.c_str(), default_value.c_str(), cBuf, 1024, file_path.c_str());
+    std::wstring host_wstr(cBuf);
+    host = std::string(host_wstr.begin(), host_wstr.end());
+
+    memset(cBuf, 0, sizeof(cBuf));  // 버퍼 초기화
+    key = L"PORT";
+
+    GetPrivateProfileString(section.c_str(), key.c_str(), default_value.c_str(), cBuf, 1024, file_path.c_str());
+    std::wstring port_wstr(cBuf);
+    chat_port = std::string(port_wstr.begin(), port_wstr.end());
+
+    std::cout << "Host: " << host << std::endl;
+	std::cout << "Port: " << chat_port << std::endl;
     try {
         boost::asio::io_context io_context;
-
-        //static plog::ConsoleAppender<plog::TxtFormatter> consoleAppender;
-		static plog::ColorConsoleAppender<plog::TxtFormatter> consoleAppender;
+        static plog::ColorConsoleAppender<plog::TxtFormatter> consoleAppender;
         plog::init(plog::verbose, &consoleAppender);
 
-		write_messages(io_context, host, chat_port);
+        write_messages(io_context, host, chat_port);
 
-		while (is_running) {
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-		}
+        while (is_running) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
 
-		io_context.stop();
+        io_context.stop();
     }
     catch (std::exception& e) {
         std::cerr << "Exception: " << e.what() << "\n";
