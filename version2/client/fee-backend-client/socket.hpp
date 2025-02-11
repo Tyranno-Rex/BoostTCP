@@ -17,20 +17,28 @@ private:
 	std::atomic<bool> is_closing_{ false };// pool이 닫히고 있는지 여부
 
 public:
+    SocketPool();
+
     // 생성자에서 pool_size만큼 socket을 생성하여 pool에 넣는다.
     SocketPool(boost::asio::io_context& io_context, const std::string& host, const std::string& port, std::size_t pool_size)
         : io_context_(io_context), host_(host), port_(port) {
         for (std::size_t i = 0; i < pool_size; ++i) {
-            // make_shared를 사용하여 shared_ptr 생성
-            auto socket = std::make_shared<tcp::socket>(io_context_);
-            // resolver를 통해 host, port로 endpoint를 얻어 connect
-            tcp::resolver resolver(io_context_);
-            // resolver.resolve(host, port)로 endpoint를 얻어 connect
-            auto endpoints = resolver.resolve(host_, port_);
-            // connect 동기로 수행
-            boost::asio::connect(*socket, endpoints);
-            // pool에 socket을 넣는다.
-            pool_.push(socket);
+            try {
+                // make_shared를 사용하여 shared_ptr 생성
+                auto socket = std::make_shared<tcp::socket>(io_context_);
+                // resolver를 통해 host, port로 endpoint를 얻어 connect
+                tcp::resolver resolver(io_context_);
+                // resolver.resolve(host, port)로 endpoint를 얻어 connect
+                auto endpoints = resolver.resolve(host_, port_);
+                // connect 동기로 수행
+                boost::asio::connect(*socket, endpoints);
+                // pool에 socket을 넣는다.
+                pool_.push(socket);
+            }
+			catch (const std::exception& e) {
+				LOGE << "Error creating socket: " << e.what();
+				close();
+            }
         }
     }
 

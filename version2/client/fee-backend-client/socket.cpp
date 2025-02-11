@@ -6,9 +6,9 @@
 extern std::mutex cout_mutex;
 extern std::mutex command_mutex;
 
-extern int total_send_cnt;
-extern int total_send_success_cnt;
-extern int total_send_fail_cnt;
+extern std::atomic<int> total_send_cnt;
+extern std::atomic<int> total_send_success_cnt;
+extern std::atomic<int> total_send_fail_cnt;
 
 
 void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num) {
@@ -22,7 +22,6 @@ void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::stri
 
                 // 메시지를 payload에 복사
                 std::string msg = std::to_string(thread_num) + ":" + std::to_string(i) + " " + message;
-                msg = printMessageWithTime(msg, false);
                 // 메시지를 최대 128자로 제한
                 msg.resize(std::min(msg.size(), (size_t)128), ' ');
 
@@ -40,26 +39,26 @@ void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::stri
 
                 // socket을 pool에서 가져온다.
                 auto socket = socket_pool.acquire();
-
+               
                 // 에러 처리
-				boost::system::error_code ec;
+                boost::system::error_code ec;
 				
+				total_send_cnt++;
                 // write를 통해서 패킷을 전송
-				boost::asio::write(*socket, boost::asio::buffer(&packet, sizeof(packet)), ec);
+                boost::asio::write(*socket, boost::asio::buffer(&packet, sizeof(packet)), ec);
 
-				if (ec) {
-					std::lock_guard<std::mutex> lock(cout_mutex);
-					LOGE << "Error writing to socket: " << ec.message();
-					total_send_fail_cnt++;
+                if (ec) {
+	                std::lock_guard<std::mutex> lock(cout_mutex);
+	                LOGE << "Error writing to socket: " << ec.message();
+	                total_send_fail_cnt++;
                 }
                 else {
-					std::lock_guard<std::mutex> lock(cout_mutex);
-					LOGI << msg;
-					total_send_success_cnt++;
+	                std::lock_guard<std::mutex> lock(cout_mutex);
+	                LOGI << msg;
+	                total_send_success_cnt++;
                 }
-
 				// socket을 pool에 반환
-				socket_pool.release(socket);
+				 socket_pool.release(socket);
 
             }
             catch (const std::exception& e) {
@@ -109,3 +108,25 @@ void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::stri
 //io_context.restart();
 //// socket을 닫음
 //socket->close();
+
+
+/*
+boost::asio::async_write(*socket, boost::asio::buffer(&packet, sizeof(packet)),
+    [msg, &socket_pool, socket](const boost::system::error_code& ec, std::size_t) {
+    if (ec) {
+        std::lock_guard<std::mutex> lock(cout_mutex);
+        LOGE << "Error writing to socket: " << ec.message();
+        total_send_fail_cnt++;
+    }
+    else {
+        std::lock_guard<std::mutex> lock(cout_mutex);
+        LOGI << msg;
+        total_send_success_cnt++;
+
+        // socket을 pool에 반환
+        socket_pool.release(socket);
+
+    }
+});
+socket_pool.release(socket);
+*/

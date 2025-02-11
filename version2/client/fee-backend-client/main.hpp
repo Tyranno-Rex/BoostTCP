@@ -2,25 +2,26 @@
 
 #include <iostream>
 #include <array>
+#include <mutex>
+#include <queue>
 #include <memory>
 #include <vector>
 #include <thread>
-#include <cstdint>
 #include <zlib.h>
 #include <string>
 #include <chrono>
+#include <cstdint>
 #include <iomanip>
 #include <sstream>
-#include <mutex>
-#include <queue>
 #include <condition_variable>
+
+#include <plog/Log.h>
+#include <plog/init.h>
 #include <openssl/md5.h>
 #include <openssl/evp.h>
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
-
-#include <plog/Log.h>
-#include <plog/init.h>
+#include <windows.h>
 #include <plog/Formatters/TxtFormatter.h>
 #include <plog/Appenders/ConsoleAppender.h>
 #include <plog/Appenders/RollingFileAppender.h>
@@ -57,4 +58,3 @@ struct Packet {
 #pragma pack(pop)
 
 std::array<unsigned char, MD5_DIGEST_LENGTH> calculate_checksum(const std::vector<char>& data);
-std::string printMessageWithTime(const std::string& message, bool isDebug);

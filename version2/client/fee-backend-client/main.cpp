@@ -1,129 +1,119 @@
 #include "main.hpp"
 #include "socket.hpp"
+#include "utils.hpp"
 
-//int total_connection = 0;
-const char expected_hcv = 0x02;
-const char expected_tcv = 0x03;
-std::mutex cout_mutex;
-std::mutex command_mutex;
+//#include <windows.h>
 
 std::atomic<bool> is_running = true;
+std::mutex command_mutex;
+std::mutex cout_mutex;
+std::condition_variable command_cv;
 
-int total_send_cnt = 0;
-int total_send_success_cnt = 0;
-int total_send_fail_cnt = 0;
+bool new_message_ready = false;
+std::string shared_message;
+const char expected_hcv = 0x02;
+const char expected_tcv = 0x03;
+
+std::atomic<int> total_send_cnt = 0;
+std::atomic<int> total_send_success_cnt = 0;
+std::atomic<int> total_send_fail_cnt = 0;
+
+
+void input_thread() {
+    while (is_running) {
+        std::string message;
+        std::cout << "Enter command: ";
+        std::getline(std::cin, message);
+
+        {
+            std::lock_guard<std::mutex> lock(command_mutex);
+            shared_message = message;
+            new_message_ready = true;
+        }
+        command_cv.notify_one();
+
+        if (message == "/exit") {
+            is_running = false;
+            break;
+        }
+    }
+}
 
 void write_messages(boost::asio::io_context& io_context, const std::string& host, const std::string& port) {
+    std::thread inputThread(input_thread);
+
     try {
+        while (is_running) {
+            std::unique_lock<std::mutex> lock(command_mutex);
+            command_cv.wait(lock, [] { return new_message_ready; });
 
-        while (true) {
-            std::string message;
-            int thread_cnt, connection_cnt;
-            int cnt = 0;
+            std::string message = shared_message;
+            new_message_ready = false;
+            lock.unlock();
 
-
-            LOGI << "Total send: " << 1000 * 10;
-            LOGI << "Total send success: " << total_send_success_cnt;
-            LOGI << "Total send fail: " << total_send_fail_cnt;
-
-			total_send_cnt = 0;
-			total_send_success_cnt = 0;
-			total_send_fail_cnt = 0;
-			std::cout << "Enter the message 1 or /debug [thread_cnt] [connection_cnt] or /clear or /exit (wrong input will exit the program)\n";
-			std::getline(std::cin, message);
             if (message == "0") {
                 SocketPool socket_pool(io_context, host, port, 1);
-                message = "It is a .";
-                thread_cnt = 1;
-                connection_cnt = 1;
-
-                if (message.size() > 128) {
-                    message = message.substr(0, 128);
-                }
-
-                boost::asio::thread_pool pool(thread_cnt);
-                for (int i = 0; i < thread_cnt; ++i) {
-                    boost::asio::post(pool, [&socket_pool, connection_cnt, message, i]() {
-                        handle_sockets(socket_pool, connection_cnt, message, i);
-                        });
-                }
+				std::string msg = "simple message";
+                boost::asio::thread_pool pool(1);
+                boost::asio::post(pool, [&socket_pool, msg]() {
+                    handle_sockets(socket_pool, 1, msg, 0);
+                    });
                 pool.join();
             }
-            if (message == "1") {
+            else if (message == "1") {
                 SocketPool socket_pool(io_context, host, port, 100);
-                message = "It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.However lit...";
-                thread_cnt = 10;
-                connection_cnt = 10000;
-
-                if (message.size() > 128) {
-                    message = message.substr(0, 128);
-                }
-
-                boost::asio::thread_pool pool(thread_cnt);
-                for (int i = 0; i < thread_cnt; ++i) {
-                    boost::asio::post(pool, [&socket_pool, connection_cnt, message, i]() {
-                        handle_sockets(socket_pool, connection_cnt, message, i);
-                        });
-                }
+				std::string msg = "You can't let your failures define you. You have to let your failures teach you. You have to let them show you what to do differently the next time.";
+                boost::asio::thread_pool pool(10);
+                boost::asio::post(pool, [&socket_pool, msg]() {
+                    handle_sockets(socket_pool, 10000, msg, 0);
+                    });
                 pool.join();
             }
             else if (message.rfind("/debug", 0) == 0) {
                 std::istringstream iss(message.substr(7));
-                if (!(iss >> thread_cnt >> connection_cnt)) {
+                int thread_cnt, connection_cnt;
+                if (!(iss >> thread_cnt >> connection_cnt) || thread_cnt <= 0 || connection_cnt <= 0) {
                     continue;
                 }
-				// 전달된 thread_cnt와 connection_cnt이 숫자값으로 들어왔는 지 확인
-				if (thread_cnt <= 0 || connection_cnt <= 0) {
-					continue;
-				}
 
-				std::string message = "It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.However lit...";
+				std::string msg = "You can't let your failures define you. You have to let your failures teach you. You have to let them show you what to do differently the next time.";
+                while (is_running) {
+                    try {
+                        boost::asio::thread_pool pool(thread_cnt);
+                        // int socket_cnt = rand() % 21 + 10;
+                        int socket_cnt = 100;
 
-				if (message.size() > 128) {
-					message = message.substr(0, 128);
-				}
-                while (true) {
-                    boost::asio::thread_pool thread_pool_(thread_cnt);
-					// 10 ~ 30 사이의 랜덤한 소켓 개수를 생성
-					int socket_cnt = rand() % 21 + 10;
-					SocketPool socket_pool_rand(io_context, host, port, size_t(socket_cnt));
-                    for (int i = 0; i < thread_cnt; ++i) {
-                        boost::asio::post(thread_pool_, [&socket_pool_rand, connection_cnt, message, i]() {
-                            handle_sockets(socket_pool_rand, connection_cnt, message, i);
-                            });
+                        SocketPool socket_pool(io_context, host, port, size_t(socket_cnt));
+
+                        for (int i = 0; i < thread_cnt; ++i) {
+                            boost::asio::post(pool, [&socket_pool, connection_cnt, msg, i]() {
+                                handle_sockets(socket_pool, connection_cnt, msg, i);
+                                });
+                        }
+                        pool.join();
+                        socket_pool.close();
+                        LOGI << total_send_cnt << " / " << total_send_success_cnt << " / " << total_send_fail_cnt
+                            << " \t\tsuccess rate: " << (double)total_send_success_cnt / total_send_cnt * 100 << "\n";
+					}
+                    catch (std::exception& e) {
+                        std::cerr << "Exception in debug mode: " << e.what() << std::endl;
                     }
-                    thread_pool_.join();
-					socket_pool_rand.close();
-					Sleep(1);
                 }
             }
             else if (message == "/clear") {
-				system("cls");
+                system("cls");
             }
             else if (message == "/exit") {
-				is_running = false;
+                is_running = false;
                 break;
             }
-            else {
-				is_running = false;
-				break;
-            }        
         }
     }
     catch (std::exception& e) {
         std::cerr << "Exception in write thread: " << e.what() << std::endl;
     }
-}
 
-#include <windows.h>
-#include <string>
-
-// Convert a narrow string to a wide string
-std::wstring stringToWString(const std::string& str) {
-    int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
-    std::wstring wstrTo(size_needed, 0);
-    MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
-    return wstrTo;
+    inputThread.join();
 }
 
 int main(int argc, char* argv[]) {
@@ -172,16 +162,17 @@ int main(int argc, char* argv[]) {
 
     std::cout << "Host: " << host << std::endl;
 	std::cout << "Port: " << chat_port << std::endl;
+
+    system("start cmd /k \"echo New Console Window & pause\"");
+    std::cout << "Press any key to exit...\n";
+    std::cin.get();
+
     try {
         boost::asio::io_context io_context;
         static plog::ColorConsoleAppender<plog::TxtFormatter> consoleAppender;
         plog::init(plog::verbose, &consoleAppender);
 
         write_messages(io_context, host, chat_port);
-
-        while (is_running) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-        }
 
         io_context.stop();
     }
