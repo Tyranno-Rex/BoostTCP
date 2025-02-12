@@ -106,12 +106,12 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\library\boost_1_86_0;C:\Program Files\PostgreSQL\17\include;C:\library\DEV\vcpkg\installed\x64-windows\include;C:\Users\eunseong\library\boost_1_86_0;C:\Users\eunseong\library\vcpkg\installed\x64-windows\include;C:\Users\eunseong\library\boost_1_86_0\bin.v2;..\..\library\cryptopp;..\..\library\plog\include\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\library\boost_1_86_0;C:\Program Files\PostgreSQL\17\include;C:\library\DEV\vcpkg\installed\x64-windows\include;C:\Users\eunseong\library\boost_1_86_0;C:\Users\eunseong\library\vcpkg\installed\x64-windows\include;C:\Users\eunseong\library\boost_1_86_0\bin.v2;..\..\library\cryptopp;..\..\library\plog\include\;..\..\library\commoncpp\lib</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\library\boost_1_86_0\libs;C:\library\boost_1_86_0\stage\lib;C:\Program Files\PostgreSQL\17\lib;C:\library\DEV\vcpkg\installed\x64-windows\lib;C:\Users\eunseong\library\boost_1_86_0\libs;C:\Users\eunseong\library\vcpkg\installed\x64-windows\lib;C:\Users\eunseong\library\boost_1_86_0\stage\lib;..\..\library\cryptopp;..\..\library\plog\include\</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\library\boost_1_86_0\libs;C:\library\boost_1_86_0\stage\lib;C:\Program Files\PostgreSQL\17\lib;C:\library\DEV\vcpkg\installed\x64-windows\lib;C:\Users\eunseong\library\boost_1_86_0\libs;C:\Users\eunseong\library\vcpkg\installed\x64-windows\lib;C:\Users\eunseong\library\boost_1_86_0\stage\lib;..\..\library\cryptopp;..\..\library\plog\include\;..\..\library\commoncpp\lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>cryptlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
