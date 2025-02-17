@@ -1,15 +1,7 @@
 #pragma once
-
 #include "main.hpp"
 #include "socket.hpp"
-
-extern std::mutex cout_mutex;
-extern std::mutex command_mutex;
-
-extern std::atomic<int> total_send_cnt;
-extern std::atomic<int> total_send_success_cnt;
-extern std::atomic<int> total_send_fail_cnt;
-
+#include "globals.hpp"
 
 void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num) {
     try {

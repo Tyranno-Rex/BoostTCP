@@ -117,7 +117,7 @@ public:
 };
 
 class Server {
-private:
+    private:
     boost::asio::io_context& io_context;
     unsigned short port;
     std::vector<std::shared_ptr<Session>> clients;
@@ -152,6 +152,6 @@ public:
     void chatRun();
     void doAccept(tcp::acceptor& acceptor);
     void removeClient(std::shared_ptr<Session> client);
-	void consoleStop();
-	void chatStop();
+    void consoleStop();
+    void chatStop();
 };

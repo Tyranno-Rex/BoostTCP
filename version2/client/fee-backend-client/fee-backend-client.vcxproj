@@ -106,12 +106,12 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\library\boost_1_86_0;C:\Program Files\PostgreSQL\17\include;C:\library\DEV\vcpkg\installed\x64-windows\include;C:\Users\eunseong\library\boost_1_86_0;C:\Users\eunseong\library\vcpkg\installed\x64-windows\include;C:\Users\eunseong\library\boost_1_86_0\bin.v2;..\..\library\cryptopp;..\..\library\plog\include\;..\..\library\commoncpp\lib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\library\boost_1_86_0;C:\Program Files\PostgreSQL\17\include;C:\library\DEV\vcpkg\installed\x64-windows\include;C:\Users\eunseong\library\boost_1_86_0;C:\Users\eunseong\library\vcpkg\installed\x64-windows\include;C:\Users\eunseong\library\boost_1_86_0\bin.v2;..\..\library\cryptopp;..\..\library\plog\include\;..\..\library\commoncpp\lib;..\..\library\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\library\boost_1_86_0\libs;C:\library\boost_1_86_0\stage\lib;C:\Program Files\PostgreSQL\17\lib;C:\library\DEV\vcpkg\installed\x64-windows\lib;C:\Users\eunseong\library\boost_1_86_0\libs;C:\Users\eunseong\library\vcpkg\installed\x64-windows\lib;C:\Users\eunseong\library\boost_1_86_0\stage\lib;..\..\library\cryptopp;..\..\library\plog\include\;..\..\library\commoncpp\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\library\boost_1_86_0\libs;C:\library\boost_1_86_0\stage\lib;C:\Program Files\PostgreSQL\17\lib;C:\library\DEV\vcpkg\installed\x64-windows\lib;C:\Users\eunseong\library\boost_1_86_0\libs;C:\Users\eunseong\library\vcpkg\installed\x64-windows\lib;C:\Users\eunseong\library\boost_1_86_0\stage\lib;..\..\library\cryptopp;..\..\library\plog\include\;..\..\library\commoncpp\lib;..\..\library\</AdditionalLibraryDirectories>
       <AdditionalDependencies>cryptlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -123,23 +123,33 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>..\..\library\spdlog;..\..\library;..\..\library\cryptopp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>..\..\library\spdlog;..\..\library;..\..\library\cryptopp;%(AdditionalIncludeDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="globals.cpp" />
+    <ClCompile Include="input.cpp" />
+    <ClCompile Include="log.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="socket.cpp" />
     <ClCompile Include="utils.cpp" />
+    <ClCompile Include="write_messages.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="globals.hpp" />
+    <ClInclude Include="input.hpp" />
+    <ClInclude Include="log.hpp" />
     <ClInclude Include="main.hpp" />
     <ClInclude Include="socket.hpp" />
     <ClInclude Include="utils.hpp" />
+    <ClInclude Include="write_messages.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="config.ini" />

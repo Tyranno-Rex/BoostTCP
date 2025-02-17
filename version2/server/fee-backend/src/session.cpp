@@ -32,19 +32,26 @@ void Session::stop() {
 }
 
 void Session::doRead() {
+	// shared_from_this()를 사용하여 자기 자신을 참조하고 있는 shared_ptr을 생성
     auto self = shared_from_this();
+
+	// 메모리 풀에서 버퍼를 할당받아서 읽기 작업을 수행
     current_buffer = g_memory_pool.acquire();
 
+	// 비동기 읽기 작업을 수행
     socket.async_read_some(
         boost::asio::buffer(current_buffer),
+		// 비동기 작업 완료 시 호출되는 콜백 함수
         [this, self](const boost::system::error_code& error, size_t bytes_transferred) {
             if (!error) {
+				// 읽은 데이터를 패킷 큐에 넣어서 처리
                 std::vector<char> buffer(current_buffer.begin(),
                     current_buffer.begin() + bytes_transferred);
 
                 PacketTask task(std::move(buffer), bytes_transferred, self);
                 server.getPacketQueue().push(std::move(task));
 
+				// 다음 읽기 작업을 수행
                 g_memory_pool.release(current_buffer);
                 doRead();
             }
