@@ -13,7 +13,9 @@ void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::stri
                 packet.tail.value = 255;
 
                 // 메시지를 payload에 복사
-                std::string msg = std::to_string(thread_num) + ":" + std::to_string(i) + " " + message;
+                //std::string msg = std::to_string(thread_num) + ":" + std::to_string(i) + " " + message;
+                std::string msg = std::to_string(total_send_cnt) + " / " + message;
+
                 // 메시지를 최대 128자로 제한
                 msg.resize(std::min(msg.size(), (size_t)128), ' ');
 
