@@ -35,19 +35,20 @@ void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::stri
                 // 에러 처리
                 boost::system::error_code ec;
 				
-				total_send_cnt++;
                 // write를 통해서 패킷을 전송
                 boost::asio::write(*socket, boost::asio::buffer(&packet, sizeof(packet)), ec);
 
                 if (ec) {
 	                std::lock_guard<std::mutex> lock(cout_mutex);
 	                LOGE << "Error writing to socket: " << ec.message();
+				    total_send_cnt++;
 	                total_send_fail_cnt++;
                 }
                 else {
 	                std::lock_guard<std::mutex> lock(cout_mutex);
 	                LOGI << msg;
-	                total_send_success_cnt++;
+                    total_send_cnt++;
+                    total_send_success_cnt++;
                 }
 				// socket을 pool에 반환
 				 socket_pool.release(socket);

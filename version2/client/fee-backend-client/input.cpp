@@ -158,7 +158,11 @@ void run_input_process_in_new_console()
 				local_running = false;
 				break;
 			}
+			line.clear();
         }
+
+		output.clear();
+		iss.clear();
     }
 
     // 자식 프로세스 종료

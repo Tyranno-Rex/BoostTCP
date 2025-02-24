@@ -9,7 +9,7 @@
 int main(int argc, char* argv[]) {
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
-    //_CrtSetBreakAlloc(200);
+    //_CrtSetBreakAlloc(199);
     HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
 
     std::string host;
@@ -71,5 +71,6 @@ int main(int argc, char* argv[]) {
     catch (std::exception& e) {
         std::cerr << "Exception: " << e.what() << "\n";
     }
+	system("pause");
     return 0;
 }

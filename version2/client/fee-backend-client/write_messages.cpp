@@ -79,6 +79,7 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
         // 로그 출력 쓰레드
         std::thread logThread(log_process, hPipeIn_Write);
         logThread.detach();
+
     }
 
     try {
@@ -118,23 +119,16 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
 				}
                 pool.join();
             }
-            
-
             else if (message.rfind("/debug", 0) == 0) {
-                // /debug X Y
                 std::istringstream iss(message.substr(7));
                 int thread_cnt, connection_cnt;
                 if (!(iss >> thread_cnt >> connection_cnt) || thread_cnt <= 0 || connection_cnt <= 0) {
                     continue;
                 }
-
-                // 디버그 메시지
                 std::string msg =
                     "You can't let your failures define you. "
                     "You have to let your failures teach you. "
                     "You have to let them show you what to do differently the next time.";
-
-                // -- 새 쓰레드에서 디버그 작업 실행 --
                 std::thread([thread_cnt, connection_cnt, msg, &io_context, host, port]() {
                     while (is_running) {
                         if (is_stop) {
@@ -143,11 +137,8 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                         try {
                             while (!is_stop && is_running) {
                                 boost::asio::thread_pool pool(thread_cnt);
-
-                                // int socket_cnt = rand() % 21 + 10; 
                                 int socket_cnt = 100;
                                 SocketPool socket_pool(io_context, host, port, size_t(socket_cnt));
-
                                 for (int i = 0; i < thread_cnt; ++i) {
                                     boost::asio::post(pool, [&socket_pool, connection_cnt, msg, i]() {
                                         handle_sockets(socket_pool, connection_cnt, msg, i);
@@ -162,9 +153,7 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                         }
                     }
                     }).detach();  // detach() 또는 join()은 상황에 맞게 선택
-            }
-            
-            
+            }            
             if (message == "/exit")
             {
                 is_running = false;
@@ -186,41 +175,6 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                 system("clear");
 #endif
             }
-
-            //else if (message.rfind("/debug", 0) == 0) {
-            //    // /debug X Y : X(쓰레드 수), Y(커넥션 수)
-            //    std::istringstream iss(message.substr(7));
-            //    int thread_cnt, connection_cnt;
-            //    if (!(iss >> thread_cnt >> connection_cnt) || thread_cnt <= 0 || connection_cnt <= 0) {
-            //        continue;
-            //    }
-            //    std::string msg = "You can't let your failures define you. You have to let your failures teach you. You have to let them show you what to do differently the next time.";
-            //    while (is_running) {
-            //        if (is_stop) {
-            //            std::this_thread::sleep_for(std::chrono::seconds(5));
-            //        }
-            //        try {
-            //            while (!is_stop && is_running) {
-            //                boost::asio::thread_pool pool(thread_cnt);
-            //                // int socket_cnt = rand() % 21 + 10; 
-            //                int socket_cnt = 100;
-            //                SocketPool socket_pool(io_context, host, port, size_t(socket_cnt));
-            //                for (int i = 0; i < thread_cnt; ++i) {
-            //                    boost::asio::post(pool, [&socket_pool, connection_cnt, msg, i]() {
-            //                        handle_sockets(socket_pool, connection_cnt, msg, i);
-            //                        });
-            //                }
-            //                pool.join();
-            //                socket_pool.close();
-            //            }
-            //        }
-            //        catch (std::exception& e) {
-            //            std::cerr << "Exception in debug mode: " << e.what() << std::endl;
-            //        }
-            //    }
-            //}
-        
-        
         }
     }
     catch (std::exception& e) {
@@ -228,6 +182,7 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
     }
 
     // 프로세스 정리
+        
     if (pinfo.hProcess) {
         TerminateProcess(pinfo.hProcess, 0);
         CloseHandle(pinfo.hProcess);

@@ -31,4 +31,5 @@ void log_process(HANDLE hPipe) {
 
         std::this_thread::sleep_for(std::chrono::seconds(5));
     }
+	CloseHandle(hPipe);
 }
