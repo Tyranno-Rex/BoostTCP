@@ -51,7 +51,7 @@ HANDLE g_hMonitorPipe = nullptr;
 void sendToMonitorProcess(const std::string& message) {
     if (g_hMonitorPipe != nullptr) {
         DWORD bytesWritten;
-        std::string fullMessage = message + "\r\n";
+        std::string fullMessage = "echo " + message + "\r\n";
         WriteFile(g_hMonitorPipe, fullMessage.c_str(), static_cast<DWORD>(fullMessage.size()), &bytesWritten, NULL);
     }
 }
