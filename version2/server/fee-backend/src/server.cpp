@@ -22,7 +22,8 @@ extern std::atomic<int> ES_recv_packet_fail_cnt;
 
 void Server::initializeThreadPool() {
     is_running = true;
-    size_t thread_count = std::thread::hardware_concurrency();
+    size_t thread_count = std::thread::hardware_concurrency() / 4;
+	std::cout << "Thread count: " << thread_count << std::endl;
 
     for (size_t i = 0; i < thread_count; ++i) {
         worker_threads.emplace_back([this]() {
@@ -39,13 +40,43 @@ void Server::initializeThreadPool() {
     }
 }
 
+//void Server::chatRun() {
+//    try {
+//        initializeThreadPool();
+//        tcp::acceptor acceptor(io_context,
+//            tcp::endpoint(tcp::v4(), port));
+//        doAccept(acceptor);
+//        io_context.run();
+//    }
+//    catch (const std::exception& e) {
+//        std::cerr << "Error in chatRun: " << e.what() << std::endl;
+//    }
+//}
+
 void Server::chatRun() {
     try {
         initializeThreadPool();
-        tcp::acceptor acceptor(io_context,
-            tcp::endpoint(tcp::v4(), port));
+        tcp::acceptor acceptor(io_context, tcp::endpoint(tcp::v4(), port));
         doAccept(acceptor);
+
+        // io_context를 여러 스레드에서 실행
+        std::vector<std::thread> io_threads;
+        size_t thread_count = std::thread::hardware_concurrency() / 4;
+        for (size_t i = 0; i < thread_count; ++i) {
+            io_threads.emplace_back([this]() {
+                io_context.run();
+                });
+        }
+
+        // 메인 스레드에서도 io_context 실행
         io_context.run();
+
+        // 모든 io_context 스레드가 종료될 때까지 대기
+        for (auto& thread : io_threads) {
+            if (thread.joinable()) {
+                thread.join();
+            }
+        }
     }
     catch (const std::exception& e) {
         std::cerr << "Error in chatRun: " << e.what() << std::endl;

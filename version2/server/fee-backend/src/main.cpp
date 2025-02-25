@@ -20,6 +20,7 @@ std::atomic<int> JY_recv_packet_success_cnt = 0;
 std::atomic<int> JY_recv_packet_fail_cnt = 0;
 
 std::atomic<int> YJ_recv_packet_total_cnt = 0;
+std::atomic<int> YJ_recv_packet_total_cnt2 = 0;
 std::atomic<int> YJ_recv_packet_success_cnt = 0;
 std::atomic<int> YJ_recv_packet_fail_cnt = 0;
 
@@ -84,10 +85,15 @@ void monitorManager() {
             << (double)JY_recv_packet_success_cnt / JH_recv_packet_total_cnt * 100 << "%";
         sendToMonitorProcess(ss.str());
         ss.str("");
+        
+		ss << "YJ: " << YJ_recv_packet_total_cnt2 << " / "
+            << YJ_recv_packet_total_cnt << " / " << YJ_recv_packet_success_cnt
+			<< " / " << YJ_recv_packet_fail_cnt << " success rate: "
+			<< (double)YJ_recv_packet_success_cnt / YJ_recv_packet_total_cnt * 100 << "%";
 
-        ss << "YJ: " << YJ_recv_packet_total_cnt << " / " << YJ_recv_packet_success_cnt
-            << " / " << YJ_recv_packet_fail_cnt << " success rate: "
-            << (double)YJ_recv_packet_success_cnt / YJ_recv_packet_total_cnt * 100 << "%";
+        //ss << "YJ: " << YJ_recv_packet_total_cnt << " / " << YJ_recv_packet_success_cnt
+        //    << " / " << YJ_recv_packet_fail_cnt << " success rate: "
+        //    << (double)YJ_recv_packet_success_cnt / YJ_recv_packet_total_cnt * 100 << "%";
         sendToMonitorProcess(ss.str());
         ss.str("");
 
@@ -156,7 +162,7 @@ int main(void) {
         Server chatServer(io_context, 7777);
         Server consoleServer(io_context, 7778);
         // Memory pool 초기화
-        g_memory_pool.init(100000);
+        g_memory_pool.init(10000);
         //plog 초기화
         static plog::ColorConsoleAppender<plog::TxtFormatter> consoleAppender;
         plog::init(plog::verbose, &consoleAppender);

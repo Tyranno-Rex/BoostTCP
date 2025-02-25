@@ -137,7 +137,7 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                         try {
                             while (!is_stop && is_running) {
                                 boost::asio::thread_pool pool(thread_cnt);
-                                int socket_cnt = 100;
+                                int socket_cnt = 1000;
                                 SocketPool socket_pool(io_context, host, port, size_t(socket_cnt));
                                 for (int i = 0; i < thread_cnt; ++i) {
                                     boost::asio::post(pool, [&socket_pool, connection_cnt, msg, i]() {
