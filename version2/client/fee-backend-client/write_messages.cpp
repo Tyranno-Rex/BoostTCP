@@ -94,32 +94,17 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
 			trim(message);
 			std::cout << "Received command: " << message << std::endl;
 
-			if (message == "/0") {
-                // 간단한 메시지 한 번 전송
-                SocketPool socket_pool(io_context, host, port, 1);
-                std::string msg = "simple message";
-
-                boost::asio::thread_pool pool(1);
-                boost::asio::post(pool, [&socket_pool, msg]() {
-                    handle_sockets(socket_pool, 1, msg, 0);
-                    });
-                pool.join();
-            }
-			else if (message == "/1") {
-				std::cout << "Sending a simple message" << std::endl;
-                // 대량 메시지 전송
-                SocketPool socket_pool(io_context, host, port, 100);
-                std::string msg = "You can't let your failures define you. You have to let your failures teach you. You have to let them show you what to do differently the next time.";
-
-                boost::asio::thread_pool pool(10);
-				for (int i = 0; i < 10; ++i) {
-					boost::asio::post(pool, [&socket_pool, msg, i]() {
-						handle_sockets(socket_pool, 10, msg, i);
-						});
-				}
-                pool.join();
-            }
-            else if (message.rfind("/debug", 0) == 0) {
+			//if (message == "/0") {
+   //             // 간단한 메시지 한 번 전송
+   //             SocketPool socket_pool(io_context, host, port, 1);
+   //             std::string msg = "simple message";
+   //             boost::asio::thread_pool pool(1);
+   //             boost::asio::post(pool, [&socket_pool, msg]() {
+   //                 //handle_sockets(socket_pool, 1, msg, 0);
+   //                 });
+   //             pool.join();
+   //         }
+            if (message.rfind("/debug", 0) == 0) {
                 std::istringstream iss(message.substr(7));
                 int thread_cnt, connection_cnt;
                 if (!(iss >> thread_cnt >> connection_cnt) || thread_cnt <= 0 || connection_cnt <= 0) {
@@ -136,16 +121,55 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                         }
                         try {
                             while (!is_stop && is_running) {
+		                        LOGE << "Starting debug mode with " << thread_cnt << " threads and " << connection_cnt << " connections.";
+                                
+
+                                //boost::asio::thread_pool pool(thread_cnt);
+                                //int socket_cnt = 1000;
+                                //SocketPool socket_pool(io_context, host, port, size_t(socket_cnt));
+                                //for (int i = 0; i < thread_cnt; ++i) {
+                                //    boost::asio::post(pool, [&socket_pool, connection_cnt, msg, i]() {
+                                //        handle_sockets(socket_pool, connection_cnt, msg, i);
+                                //        });
+                                //}
+                                //pool.join();
+                                //socket_pool.close();
+
+
+                                // shared_ptr로 소켓 풀 생성
+                                auto socket_pool_ptr = std::make_shared<SocketPool>(io_context, host, port, size_t(100));
+
+                                // 원자적 카운터 추가
+                                std::shared_ptr<std::atomic<int>> pending_ops = std::make_shared<std::atomic<int>>(0);
+
+                                // 스레드 풀 생성
                                 boost::asio::thread_pool pool(thread_cnt);
-                                int socket_cnt = 1000;
-                                SocketPool socket_pool(io_context, host, port, size_t(socket_cnt));
+
                                 for (int i = 0; i < thread_cnt; ++i) {
-                                    boost::asio::post(pool, [&socket_pool, connection_cnt, msg, i]() {
-                                        handle_sockets(socket_pool, connection_cnt, msg, i);
+                                    boost::asio::post(pool, [socket_pool_ptr, pending_ops, connection_cnt, msg, i]() {
+                                        //handle_sockets(*socket_pool_ptr, connection_cnt, msg, i, pending_ops);
                                         });
                                 }
+
+                                // 모든 비동기 작업이 완료될 때까지 대기 (0이 될 때까지)
+                                LOGE << "Thread pool joined. Waiting for " << *pending_ops << " async operations to complete...";
                                 pool.join();
-                                socket_pool.close();
+
+
+                                while (*pending_ops > 0) {
+                                    LOGE << "Pending operations: " << *pending_ops;
+                                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                                }
+                                
+
+                                if (*pending_ops == 0) {
+                                    // 스레드 풀 작업 완료 대기
+                                    LOGE << "All async operations completed. Closing socket pool.";
+                                    socket_pool_ptr->close();
+                                }
+
+                                std::this_thread::sleep_for(std::chrono::seconds(1));
+                                
                             }
                         }
                         catch (std::exception& e) {

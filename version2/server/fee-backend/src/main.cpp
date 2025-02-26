@@ -15,12 +15,13 @@
 std::atomic<bool> running(true);
 MemoryPool g_memory_pool;
 
+std::atomic<int> total_connection_packet = 0;
+
 std::atomic<int> JH_recv_packet_total_cnt = 0;
-std::atomic<int> JY_recv_packet_success_cnt = 0;
-std::atomic<int> JY_recv_packet_fail_cnt = 0;
+std::atomic<int> JH_recv_packet_success_cnt = 0;
+std::atomic<int> JH_recv_packet_fail_cnt = 0;
 
 std::atomic<int> YJ_recv_packet_total_cnt = 0;
-std::atomic<int> YJ_recv_packet_total_cnt2 = 0;
 std::atomic<int> YJ_recv_packet_success_cnt = 0;
 std::atomic<int> YJ_recv_packet_fail_cnt = 0;
 
@@ -80,20 +81,19 @@ void monitorManager() {
 
         std::stringstream ss;
 
-        ss << "JH: " << JH_recv_packet_total_cnt << " / " << JY_recv_packet_success_cnt
-            << " / " << JY_recv_packet_fail_cnt << " success rate: "
-            << (double)JY_recv_packet_success_cnt / JH_recv_packet_total_cnt * 100 << "%";
+		ss << "Total connection: " << total_connection_packet;
+		sendToMonitorProcess(ss.str());
+        ss.str("");
+
+        ss << "JH: " << JH_recv_packet_total_cnt << " / " << JH_recv_packet_success_cnt
+            << " / " << JH_recv_packet_success_cnt << " success rate: "
+            << (double)JH_recv_packet_success_cnt / JH_recv_packet_total_cnt * 100 << "%";
         sendToMonitorProcess(ss.str());
         ss.str("");
         
-		ss << "YJ: " << YJ_recv_packet_total_cnt2 << " / "
-            << YJ_recv_packet_total_cnt << " / " << YJ_recv_packet_success_cnt
+		ss << "YJ: " << YJ_recv_packet_total_cnt << " / " << YJ_recv_packet_success_cnt
 			<< " / " << YJ_recv_packet_fail_cnt << " success rate: "
 			<< (double)YJ_recv_packet_success_cnt / YJ_recv_packet_total_cnt * 100 << "%";
-
-        //ss << "YJ: " << YJ_recv_packet_total_cnt << " / " << YJ_recv_packet_success_cnt
-        //    << " / " << YJ_recv_packet_fail_cnt << " success rate: "
-        //    << (double)YJ_recv_packet_success_cnt / YJ_recv_packet_total_cnt * 100 << "%";
         sendToMonitorProcess(ss.str());
         ss.str("");
 
@@ -205,7 +205,7 @@ int main(void) {
 //void monitorManager() {
 //	while (running) {   
 //		std::this_thread::sleep_for(std::chrono::seconds(5));
-//		LOGI << "JH: " << JH_recv_packet_total_cnt << " / " << JY_recv_packet_success_cnt << " / " << JY_recv_packet_fail_cnt << " success rate: " << (double)JY_recv_packet_success_cnt / JH_recv_packet_total_cnt * 100 << "%";
+//		LOGI << "JH: " << JH_recv_packet_total_cnt << " / " << JH_recv_packet_success_cnt << " / " << JH_recv_packet_success_cnt << " success rate: " << (double)JH_recv_packet_success_cnt / JH_recv_packet_total_cnt * 100 << "%";
 //		LOGI << "YJ: " << YJ_recv_packet_total_cnt << " / " << YJ_recv_packet_success_cnt << " / " << YJ_recv_packet_fail_cnt << " success rate: " << (double)YJ_recv_packet_success_cnt / YJ_recv_packet_total_cnt * 100 << "%";
 //		LOGI << "ES: " << ES_recv_packet_total_cnt << " / " << ES_recv_packet_success_cnt << " / " << ES_recv_packet_fail_cnt << " success rate: " << (double)ES_recv_packet_success_cnt / ES_recv_packet_total_cnt * 100 << "%\n\n";
 //    }

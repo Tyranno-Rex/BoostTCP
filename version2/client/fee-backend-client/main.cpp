@@ -60,7 +60,26 @@ int main(int argc, char* argv[]) {
         plog::init(plog::verbose, &consoleAppender);
         std::thread inputConsoleThread(run_input_process_in_new_console);
 
+
+        auto main_work_guard = boost::asio::make_work_guard(io_context);
+
+        // io_context 실행을 위한 여러 스레드 생성 (더 많은 스레드가 필요할 수 있음)
+        std::vector<std::thread> io_threads;
+        for (int i = 0; i < 4; ++i) { // CPU 코어 수에 맞게 조정
+            io_threads.emplace_back([&io_context]() {
+                io_context.run();
+                });
+        }
+
         write_messages(io_context, host, chat_port);
+
+        // 나머지 코드...
+        // 프로그램 종료 시 io_context 정리
+        main_work_guard.reset(); // work_guard 해제하여 io_context가 작업 완료 후 종료되도록 함
+        io_context.stop();
+        for (auto& t : io_threads) {
+            if (t.joinable()) t.join();
+        }
 
         if (inputConsoleThread.joinable())
         {

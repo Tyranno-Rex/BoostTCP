@@ -104,6 +104,39 @@ public:
             io_context_.stop();
         }
     }
+
+	// 열려있는 소켓의 개수를 반환
+    std::size_t open_socket_count() {
+        std::unique_lock<std::mutex> lock(mutex_);
+        std::size_t count = 0;
+        std::queue<std::shared_ptr<tcp::socket>> temp_pool = pool_;
+        while (!temp_pool.empty()) {
+            auto socket = temp_pool.front();
+            temp_pool.pop();
+            if (socket && socket->is_open()) {
+                count++;
+            }
+        }
+        return count;
+    }
 };
 
-void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num);
+//void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num);
+//void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num, std::shared_ptr<std::atomic<int>> pending_ops);
+
+
+class SocketHandler : public std::enable_shared_from_this<SocketHandler> {
+public:
+    SocketHandler(SocketPool& socket_pool, int connection_cnt, const std::string& message, int thread_num, std::shared_ptr<std::atomic<int>> pending_ops)
+        : socket_pool_(socket_pool), connection_cnt_(connection_cnt), message_(message), thread_num_(thread_num), pending_ops_(pending_ops) {
+    }
+
+    void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num, std::shared_ptr<std::atomic<int>> pending_ops);
+
+private:
+    SocketPool& socket_pool_;
+    int connection_cnt_;
+    std::string message_;
+    int thread_num_;
+    std::shared_ptr<std::atomic<int>> pending_ops_;
+};
