@@ -94,32 +94,7 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
 			trim(message);
 			std::cout << "Received command: " << message << std::endl;
 
-			if (message == "/0") {
-                // 간단한 메시지 한 번 전송
-                SocketPool socket_pool(io_context, host, port, 1);
-                std::string msg = "simple message";
-
-                boost::asio::thread_pool pool(1);
-                boost::asio::post(pool, [&socket_pool, msg]() {
-                    handle_sockets(socket_pool, 1, msg, 0);
-                    });
-                pool.join();
-            }
-			else if (message == "/1") {
-				std::cout << "Sending a simple message" << std::endl;
-                // 대량 메시지 전송
-                SocketPool socket_pool(io_context, host, port, 100);
-                std::string msg = "You can't let your failures define you. You have to let your failures teach you. You have to let them show you what to do differently the next time.";
-
-                boost::asio::thread_pool pool(10);
-				for (int i = 0; i < 10; ++i) {
-					boost::asio::post(pool, [&socket_pool, msg, i]() {
-						handle_sockets(socket_pool, 10, msg, i);
-						});
-				}
-                pool.join();
-            }
-            else if (message.rfind("/debug", 0) == 0) {
+            if (message.rfind("/debug", 0) == 0) {
                 std::istringstream iss(message.substr(7));
                 int thread_cnt, connection_cnt;
                 if (!(iss >> thread_cnt >> connection_cnt) || thread_cnt <= 0 || connection_cnt <= 0) {
@@ -137,14 +112,18 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                         try {
                             while (!is_stop && is_running) {
                                 boost::asio::thread_pool pool(thread_cnt);
+                                
                                 int socket_cnt = 1000;
                                 SocketPool socket_pool(io_context, host, port, size_t(socket_cnt));
                                 for (int i = 0; i < thread_cnt; ++i) {
-                                    boost::asio::post(pool, [&socket_pool, connection_cnt, msg, i]() {
-                                        handle_sockets(socket_pool, connection_cnt, msg, i);
+									boost::asio::post(pool, [&socket_pool, connection_cnt, msg, i]() {
+										handle_sockets(socket_pool, connection_cnt, msg, i);
                                         });
                                 }
                                 pool.join();
+
+                                
+
                                 socket_pool.close();
                             }
                         }

@@ -45,27 +45,23 @@ using tcp = net::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 struct PacketTask {
     std::unique_ptr<std::vector<char>> data;
     size_t size;
-    std::weak_ptr<Session> session;
 
 	PacketTask() = default;
 
-    PacketTask(std::unique_ptr<std::vector<char>>&& buffer, size_t s, std::shared_ptr<Session> sess)
+    PacketTask(std::unique_ptr<std::vector<char>>&& buffer, size_t s)
         : data(std::move(buffer))
-        , size(s)
-        , session(sess) {
+        , size(s) {
     }
 
     PacketTask(PacketTask&& other) noexcept
         : data(std::move(other.data))
-        , size(other.size)
-        , session(other.session) {
+        , size(other.size) {
     }
 
     PacketTask& operator=(PacketTask&& other) noexcept {
         if (this != &other) {
             data = std::move(other.data);
             size = other.size;
-            session = other.session;
         }
         return *this;
     }
@@ -81,7 +77,7 @@ private:
     std::mutex mutex;
     std::condition_variable condition;
     bool stopping = false;
-    size_t max_queue_size = 100000;
+    size_t max_queue_size = 1000000;
 
 public:
     bool push(PacketTask&& task) {

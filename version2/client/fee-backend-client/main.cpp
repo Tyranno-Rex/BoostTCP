@@ -9,7 +9,6 @@
 int main(int argc, char* argv[]) {
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
-    //_CrtSetBreakAlloc(199);
     HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
 
     std::string host;
@@ -59,6 +58,12 @@ int main(int argc, char* argv[]) {
         static plog::ColorConsoleAppender<plog::TxtFormatter> consoleAppender;
         plog::init(plog::verbose, &consoleAppender);
         std::thread inputConsoleThread(run_input_process_in_new_console);
+        std::thread io_thread([&io_context]() {
+            while (is_running)
+            {
+                io_context.run();
+            }
+            });
 
         write_messages(io_context, host, chat_port);
 
@@ -66,6 +71,7 @@ int main(int argc, char* argv[]) {
         {
             inputConsoleThread.join();
         }
+        io_thread.detach();
         io_context.stop();
     }
     catch (std::exception& e) {
