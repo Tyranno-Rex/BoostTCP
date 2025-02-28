@@ -11,7 +11,6 @@ void log_process(HANDLE hPipe) {
     while (true) {
         std::string log_message =
             "echo Total: " + std::to_string(total_send_cnt.load()) +
-			" / Pool: " + std::to_string(socket_pool_size.load()) +
             " / Success: " + std::to_string(total_send_success_cnt.load()) +
             " / Fail: " + std::to_string(total_send_fail_cnt.load()) +
             " / Success Rate: " +
