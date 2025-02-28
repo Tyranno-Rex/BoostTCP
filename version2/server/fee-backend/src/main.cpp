@@ -15,12 +15,18 @@
 std::atomic<bool> running(true);
 MemoryPool g_memory_pool;
 
+
+std::atomic<int> ReceiveConnectionCnt = 0;
+std::atomic<int> Total_Packet_Cnt = 0;
+std::atomic<int> Total_Packet_Cnt2 = 0;
+std::atomic<int> Total_Packet_Cnt3 = 0;
+
+
 std::atomic<int> JH_recv_packet_total_cnt = 0;
 std::atomic<int> JY_recv_packet_success_cnt = 0;
 std::atomic<int> JY_recv_packet_fail_cnt = 0;
 
 std::atomic<int> YJ_recv_packet_total_cnt = 0;
-std::atomic<int> YJ_recv_packet_total_cnt2 = 0;
 std::atomic<int> YJ_recv_packet_success_cnt = 0;
 std::atomic<int> YJ_recv_packet_fail_cnt = 0;
 
@@ -80,14 +86,17 @@ void monitorManager() {
 
         std::stringstream ss;
 
+		ss << "ReceiveConnectionCnt: " << ReceiveConnectionCnt << " Total_Packet_Cnt: " << Total_Packet_Cnt << " Total_Packet_Cnt2: " << Total_Packet_Cnt2 << " Total_Packet_Cnt3: " << Total_Packet_Cnt3;
+		sendToMonitorProcess(ss.str());
+		ss.str("");
+
         ss << "JH: " << JH_recv_packet_total_cnt << " / " << JY_recv_packet_success_cnt
             << " / " << JY_recv_packet_fail_cnt << " success rate: "
             << (double)JY_recv_packet_success_cnt / JH_recv_packet_total_cnt * 100 << "%";
         sendToMonitorProcess(ss.str());
         ss.str("");
         
-		ss << "YJ: " << YJ_recv_packet_total_cnt2 << " / "
-            << YJ_recv_packet_total_cnt << " / " << YJ_recv_packet_success_cnt
+		ss << "YJ: " << YJ_recv_packet_total_cnt << " / " << YJ_recv_packet_success_cnt
 			<< " / " << YJ_recv_packet_fail_cnt << " success rate: "
 			<< (double)YJ_recv_packet_success_cnt / YJ_recv_packet_total_cnt * 100 << "%";
 

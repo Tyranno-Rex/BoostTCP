@@ -3,6 +3,109 @@
 #include "socket.hpp"
 #include "globals.hpp"
 
+
+
+
+
+
+
+
+void SocketHandler::handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num) {
+    try {
+        for (int i = 0; i < connection_cnt; ++i) {
+            try {
+                // 패킷 생성
+                Packet packet;
+                packet.header.type = PacketType::ES;
+                packet.tail.value = 255;
+
+                // 메시지를 payload에 복사
+                //std::string msg = std::to_string(thread_num) + ":" + std::to_string(i) + " " + message;
+                std::string msg = std::to_string(total_send_cnt) + " / " + message;
+
+                // 메시지를 최대 128자로 제한
+                msg.resize(std::min(msg.size(), (size_t)128), ' ');
+
+                // memset을 통해서 payload를 0으로 초기화
+                std::memset(packet.payload, 0, sizeof(packet.payload));
+                // memcpy를 통해서 payload에 메시지를 복사
+                std::memcpy(packet.payload, msg.c_str(), std::min(msg.size(), (size_t)128));
+                // header.size에 메시지의 크기를 저장
+				packet.header.size = static_cast<uint32_t>(sizeof(packet));
+
+				//std::memcpy(packet.header.checkSum, "1234567890123456", 16);
+                // checksum을 계산하여 header.checkSum에 저장
+                auto checksum = calculate_checksum(std::vector<char>(msg.begin(), msg.end()));
+				std::memcpy(packet.header.checkSum, checksum.data(), checksum.size());
+
+                // socket을 pool에서 가져온다.
+                auto socket = socket_pool.acquire();
+               
+
+                auto write_handler = [socket, socket_pool_ptr = &socket_pool, msg]
+                (boost::system::error_code ec, std::size_t length) {
+                    if (ec) {
+                        std::lock_guard<std::mutex> lock(cout_mutex);
+                        LOGE << "Error writing to socket: " << ec.message();
+                        total_send_cnt++;
+                        total_send_fail_cnt++;
+                    }
+                    else {
+                        std::lock_guard<std::mutex> lock(cout_mutex);
+                        LOGI << msg;
+                        total_send_cnt++;
+                        total_send_success_cnt++;
+                    }
+                    socket_pool_ptr->release(socket);
+                };
+
+                // 에러 처리
+                boost::system::error_code ec;
+				
+                // write를 통해서 패킷을 전송
+                //boost::asio::write(*socket, boost::asio::buffer(&packet, sizeof(packet)), ec);
+				boost::asio::async_write(*socket, boost::asio::buffer(&packet, sizeof(packet)), write_handler);
+
+                /*
+                if (ec) {
+	                std::lock_guard<std::mutex> lock(cout_mutex);
+	                LOGE << "Error writing to socket: " << ec.message();
+				    total_send_cnt++;
+	                total_send_fail_cnt++;
+                }
+                else {
+	                std::lock_guard<std::mutex> lock(cout_mutex);
+	                LOGI << msg;
+                    total_send_cnt++;
+                    total_send_success_cnt++;
+                }
+				// socket을 pool에 반환
+				 socket_pool.release(socket);
+                */
+
+            }
+            catch (const std::exception& e) {
+                std::lock_guard<std::mutex> lock(cout_mutex);
+                std::cerr << "Error handling socket " << i << ": " << e.what() << std::endl;
+            }
+        }
+    }
+    catch (const std::exception& e) {
+        std::lock_guard<std::mutex> lock(cout_mutex);
+        std::cerr << "Error handling sockets: " << e.what() << std::endl;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
 void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num) {
     try {
         for (int i = 0; i < connection_cnt; ++i) {
@@ -36,25 +139,31 @@ void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::stri
                
                 // 에러 처리
                 boost::system::error_code ec;
+
+                auto write_handler = [socket, socket_pool_ptr = &socket_pool, msg]
+                (boost::system::error_code ec, std::size_t length) {
+                    if (ec) {
+                        std::lock_guard<std::mutex> lock(cout_mutex);
+                        LOGE << "Error writing to socket: " << ec.message();
+                        total_send_cnt++;
+                        total_send_fail_cnt++;
+                    }
+                    else {
+                        std::lock_guard<std::mutex> lock(cout_mutex);
+                        LOGI << msg;
+                        total_send_cnt++;
+                        total_send_success_cnt++;
+                    }
+                    socket_pool_ptr->release(socket);
+                    };
 				
                 // write를 통해서 패킷을 전송
-                boost::asio::write(*socket, boost::asio::buffer(&packet, sizeof(packet)), ec);
-				//boost::asio::async_write(*socket, boost::asio::buffer(&packet, sizeof(packet)),
-				//	[msg, &socket_pool, socket](const boost::system::error_code& ec, std::size_t) {
-				//		if (ec) {
-				//			std::lock_guard<std::mutex> lock(cout_mutex);
-				//			LOGE << "Error writing to socket: " << ec.message();
-				//			total_send_fail_cnt++;
-				//		}
-				//		else {
-				//			std::lock_guard<std::mutex> lock(cout_mutex);
-				//			LOGI << msg;
-				//			total_send_success_cnt++;
-				//			// socket을 pool에 반환
-				//			//socket_pool.release(socket);
-				//		}
-				//	});
+                //boost::asio::write(*socket, boost::asio::buffer(&packet, sizeof(packet)), ec);
+                
+				boost::asio::async_write(*socket, boost::asio::buffer(&packet, sizeof(packet)), write_handler);
+                
 
+                /*
                 if (ec) {
 	                std::lock_guard<std::mutex> lock(cout_mutex);
 	                LOGE << "Error writing to socket: " << ec.message();
@@ -69,6 +178,7 @@ void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::stri
                 }
 				// socket을 pool에 반환
 				 socket_pool.release(socket);
+                */
 
             }
             catch (const std::exception& e) {

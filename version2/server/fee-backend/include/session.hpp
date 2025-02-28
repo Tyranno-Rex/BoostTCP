@@ -43,7 +43,8 @@ public:
     }
 
 	void stop();
-	void processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size);
+	//void processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size);
+
     void handleReceivedData(size_t bytes_transferred); // 데이터 처리 함수 추가
 	void handleReceivedData(std::array<char, 150>& buffer, size_t bytes_transferred); // 데이터 처리 함수 추가
 private:
@@ -52,3 +53,4 @@ private:
     bool handlePacket(size_t bytes_transferred);
 };
 
+void processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size);

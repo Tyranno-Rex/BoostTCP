@@ -106,4 +106,21 @@ public:
     }
 };
 
+
 void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num);
+
+
+class SocketHandler {
+public:
+	SocketHandler(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num)
+		: socket_pool_(socket_pool), connection_cnt_(connection_cnt), message_(message), thread_num_(thread_num) {
+	}
+    
+    void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::string message, int thread_num);
+
+private:
+	SocketPool& socket_pool_;
+	int connection_cnt_;
+	std::string message_;
+	int thread_num_;
+};

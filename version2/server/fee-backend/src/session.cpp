@@ -14,7 +14,13 @@ extern std::atomic<int>
  JY_recv_packet_fail_cnt;
 
 extern std::atomic<int> 
- YJ_recv_packet_total_cnt2;
+ReceiveConnectionCnt;
+extern std::atomic<int>
+Total_Packet_Cnt;
+extern std::atomic<int>
+Total_Packet_Cnt2;
+extern std::atomic<int>
+Total_Packet_Cnt3;
 
 extern std::atomic<int>
  YJ_recv_packet_total_cnt;
@@ -33,6 +39,217 @@ extern std::atomic<int>
 void Session::stop() {
 	socket.close();
 }
+
+// --------------------------------------------------------------------------------------------
+void Session::doRead() {
+
+    // shared_from_this()를 사용하여 자기 자신을 참조하고 있는 shared_ptr을 생성
+    auto self = shared_from_this();
+    // 메모리 풀에서 버퍼를 할당받아서 읽기 작업을 수행
+    current_buffer = g_memory_pool.acquire();
+    // 비동기 읽기 작업을 수행
+    socket.async_read_some(
+        boost::asio::buffer(current_buffer),
+        // 비동기 작업 완료 시 호출되는 콜백 함수
+        [this, self](const boost::system::error_code& error, size_t bytes_transferred) {
+            if (!error) {
+                // 읽은 데이터를 처리
+                handleReceivedData(bytes_transferred);
+                // 다음 읽기 작업을 수행
+                g_memory_pool.release(current_buffer);
+                doRead();
+            }
+            else {
+                std::cerr << "Client disconnected" << std::endl;
+                LOGI << "Client disconnected";
+                g_memory_pool.release(current_buffer);
+                stop();
+                server.removeClient(self);
+            }
+        });
+}
+
+// 데이터 처리 함수 추가
+void Session::handleReceivedData(size_t bytes_transferred) {
+    std::lock_guard<std::mutex> lock(read_mutex);
+    if (bytes_transferred != 150) {
+		LOGE << "Received not 150 bytes " << bytes_transferred;
+    }
+	ReceiveConnectionCnt++;
+
+    // 새로 받은, 데이터를 임시 버퍼에 복사
+    std::vector<char> temp_buffer(current_buffer.begin(),
+        current_buffer.begin() + bytes_transferred);
+
+    // 이전에 저장된 불완전 패킷이 있으면 현재 받은 데이터와 합침
+    if (!partial_packet_buffer.empty()) {
+        temp_buffer.insert(temp_buffer.begin(),
+            partial_packet_buffer.begin(),
+            partial_packet_buffer.end());
+        partial_packet_buffer.clear();
+    }
+
+    // 완전한 패킷 단위로 처리
+    const size_t PACKET_SIZE = 150; // 패킷 크기
+    size_t processed = 0;
+	int cnt = 0;
+
+    while (processed + PACKET_SIZE <= temp_buffer.size()) {
+        // 벡터를 이동하는 대신 복사하거나 참조를 사용
+        auto packet = std::make_unique<std::vector<char>>(
+            temp_buffer.begin() + processed,
+            temp_buffer.begin() + processed + PACKET_SIZE
+        );
+
+        // 패킷 큐에 추가
+        PacketTask task(std::move(packet), PACKET_SIZE, shared_from_this());
+        server.getPacketQueue().push(std::move(task));
+
+        processed += PACKET_SIZE;
+        cnt++;
+    }
+
+	Total_Packet_Cnt += cnt;
+    
+    if (bytes_transferred != 150) {
+		LOGE << "processed: " << processed << " cnt: " << cnt << " bytes_transferred: " << bytes_transferred;
+    }
+
+    // 남은 데이터가 있으면 불완전 패킷으로 저장
+    if (processed < temp_buffer.size()) {
+        partial_packet_buffer.assign(temp_buffer.begin() + processed,
+            temp_buffer.end());
+    }
+}
+// --------------------------------------------------------------------------------------------
+
+void processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size) {
+    const size_t PACKET_SIZE = 150;
+    int cnt = 0;
+    int cnt2 = 0;
+
+    cnt2 = size / PACKET_SIZE;
+
+    size_t processed = 0;
+    while (processed + PACKET_SIZE <= size) {
+        std::vector<char> packet(data->begin() + processed, data->begin() + processed + PACKET_SIZE);
+
+        if (packet[0] == 101) {
+            JH_recv_packet_total_cnt++;
+        }
+        else if (packet[0] == 102) {
+            YJ_recv_packet_total_cnt++;
+        }
+        else if (packet[0] == 103) {
+            ES_recv_packet_total_cnt++;
+        }
+        else {
+            LOGE << "Unknown packet type";
+        }
+
+        if (packet[149] != -1) {
+            if (packet[0] == 101) {
+                JY_recv_packet_fail_cnt++;
+            }
+            else if (packet[0] == 102) {
+                YJ_recv_packet_fail_cnt++;
+            }
+            else if (packet[0] == 103) {
+                ES_recv_packet_fail_cnt++;
+            }
+            LOGE << "Invalid tail value";
+            return;
+        }
+
+        std::string message(packet.begin() + 21, packet.begin() + 21 + 128);
+        std::string total_send_cnt = std::to_string(JH_recv_packet_total_cnt + YJ_recv_packet_total_cnt + ES_recv_packet_total_cnt);
+
+        LOGI << message;
+
+        if (packet[0] == 101) {
+            JY_recv_packet_success_cnt++;
+        }
+        else if (packet[0] == 102) {
+            YJ_recv_packet_success_cnt++;
+        }
+        else if (packet[0] == 103) {
+            ES_recv_packet_success_cnt++;
+        }
+        else {
+            LOGE << "Unknown packet type";
+        }
+
+        processed += PACKET_SIZE;
+        cnt++;
+    }
+    Total_Packet_Cnt2 += cnt;
+    Total_Packet_Cnt3 += cnt2;
+}
+/*
+void Session::processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size) {
+    std::lock_guard<std::mutex> lock(packet_mutex);
+    const size_t PACKET_SIZE = 150;
+    int cnt = 0;
+	int cnt2 = 0;
+
+	cnt2 = size / PACKET_SIZE;
+    
+    size_t processed = 0;
+	while (processed + PACKET_SIZE <= size) {
+        std::vector<char> packet(data->begin() + processed, data->begin() + processed + PACKET_SIZE);
+
+        if (packet[0] == 101) {
+            JH_recv_packet_total_cnt++;
+        }
+        else if (packet[0] == 102) {
+            YJ_recv_packet_total_cnt++;
+        }
+        else if (packet[0] == 103) {
+            ES_recv_packet_total_cnt++;
+        }
+        else {
+			LOGE << "Unknown packet type";
+        }
+
+        if (packet[149] != -1) {
+            if (packet[0] == 101) {
+                JY_recv_packet_fail_cnt++;
+            }
+            else if (packet[0] == 102) {
+                YJ_recv_packet_fail_cnt++;
+            }
+            else if (packet[0] == 103) {
+                ES_recv_packet_fail_cnt++;
+            }
+            LOGE << "Invalid tail value";
+            return;
+        }
+
+        std::string message(packet.begin() + 21, packet.begin() + 21 + 128);
+        std::string total_send_cnt = std::to_string(JH_recv_packet_total_cnt + YJ_recv_packet_total_cnt + ES_recv_packet_total_cnt);
+
+        LOGI << message;
+
+        if (packet[0] == 101) {
+            JY_recv_packet_success_cnt++;
+        }
+        else if (packet[0] == 102) {
+            YJ_recv_packet_success_cnt++;
+        }
+        else if (packet[0] == 103) {
+            ES_recv_packet_success_cnt++;
+        }
+        else {
+			LOGE << "Unknown packet type";
+        }
+
+        processed += PACKET_SIZE;
+		cnt++;
+    }
+	Total_Packet_Cnt2 += cnt;
+	Total_Packet_Cnt3 += cnt2;
+}
+*/
 
 // --------------------------------------------------------------------------------------------
 //void Session::doRead() {
@@ -71,85 +288,6 @@ void Session::stop() {
 // --------------------------------------------------------------------------------------------
 
 // --------------------------------------------------------------------------------------------
-void Session::doRead() {
-
-    // shared_from_this()를 사용하여 자기 자신을 참조하고 있는 shared_ptr을 생성
-    auto self = shared_from_this();
-    // 메모리 풀에서 버퍼를 할당받아서 읽기 작업을 수행
-    current_buffer = g_memory_pool.acquire();
-    // 비동기 읽기 작업을 수행
-    socket.async_read_some(
-        boost::asio::buffer(current_buffer),
-        // 비동기 작업 완료 시 호출되는 콜백 함수
-        [this, self](const boost::system::error_code& error, size_t bytes_transferred) {
-            if (!error) {
-                // 읽은 데이터를 처리
-                handleReceivedData(bytes_transferred);
-                // 다음 읽기 작업을 수행
-                g_memory_pool.release(current_buffer);
-                doRead();
-            }
-            else {
-                std::cerr << "Client disconnected" << std::endl;
-                LOGI << "Client disconnected";
-                g_memory_pool.release(current_buffer);
-                stop();
-                server.removeClient(self);
-            }
-        });
-}
-
-// 데이터 처리 함수 추가
-void Session::handleReceivedData(size_t bytes_transferred) {
-    //std::lock_guard<std::mutex> lock(read_mutex);
-    if (bytes_transferred != 150) {
-		LOGE << "Received not 150 bytes " << bytes_transferred;
-    }
-	YJ_recv_packet_total_cnt2++;
-
-    // 새로 받은, 데이터를 임시 버퍼에 복사
-    std::vector<char> temp_buffer(current_buffer.begin(),
-        current_buffer.begin() + bytes_transferred);
-
-    // 이전에 저장된 불완전 패킷이 있으면 현재 받은 데이터와 합침
-    if (!partial_packet_buffer.empty()) {
-        temp_buffer.insert(temp_buffer.begin(),
-            partial_packet_buffer.begin(),
-            partial_packet_buffer.end());
-        partial_packet_buffer.clear();
-    }
-
-    // 완전한 패킷 단위로 처리
-    const size_t PACKET_SIZE = 150; // 패킷 크기
-    size_t processed = 0;
-	int cnt = 0;
-
-    while (processed + PACKET_SIZE <= temp_buffer.size()) {
-        // 완전한 패킷을 추출하여 처리
-        std::vector<char> packet(temp_buffer.begin() + processed,
-            temp_buffer.begin() + processed + PACKET_SIZE);
-
-        // 패킷 큐에 추가
-        PacketTask task(std::move(packet), PACKET_SIZE, shared_from_this());
-        server.getPacketQueue().push(std::move(task));
-
-        processed += PACKET_SIZE;
-		cnt++;
-    }
-    
-    if (bytes_transferred != 150) {
-		LOGE << "processed: " << processed << " cnt: " << cnt << " bytes_transferred: " << bytes_transferred;
-    }
-
-    // 남은 데이터가 있으면 불완전 패킷으로 저장
-    if (processed < temp_buffer.size()) {
-        partial_packet_buffer.assign(temp_buffer.begin() + processed,
-            temp_buffer.end());
-    }
-}
-// --------------------------------------------------------------------------------------------
-
-
 //void Session::doRead() {
 //    // shared_from_this()를 사용하여 자기 자신을 참조하고 있는 shared_ptr을 생성
 //    auto self = shared_from_this();
@@ -208,140 +346,108 @@ void Session::handleReceivedData(size_t bytes_transferred) {
 //        partial_packet_buffer.assign(temp_buffer.begin() + processed, temp_buffer.end());
 //    }
 //}
+// --------------------------------------------------------------------------------------------
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#include <fstream>
-
-std::mutex log_mutex;
-std::ofstream logFile("log.txt", std::ios::app);  // 프로그램 시작 시 파일 열기
-
-void logError(const std::string& message) {
-    std::lock_guard<std::mutex> lock(log_mutex);
-    if (logFile.is_open()) {
-        logFile << "[ERROR] " << message << std::endl;
-    }
-}
-
-void logInfo(const std::string& message) {
-    std::lock_guard<std::mutex> lock(log_mutex);
-    if (logFile.is_open()) {
-        logFile << "[INFO] " << message << std::endl;
-    }
-}
-
-// 프로그램 종료 시 호출하여 파일 닫기
-void closeLogFile() {
-    std::lock_guard<std::mutex> lock(log_mutex);
-    if (logFile.is_open()) {
-        logFile.close();
-    }
-}
-
-//enum class PacketType : uint8_t {
-//    defEchoString = 100,
-//    JH = 101,
-//    YJ = 102,
-//    ES = 103,
-//};
-
-//struct PacketHeader {
-//    PacketType type;           // 패킷 타입: 100
-//    char checkSum[16];
-//    uint32_t size;
-//};
+//#include <fstream>
 //
-//struct PacketTail {
-//    uint8_t value;
-//};
+//std::mutex log_mutex;
+//std::ofstream logFile("log.txt", std::ios::app);  // 프로그램 시작 시 파일 열기
 //
-//struct Packet {
-//    PacketHeader header; // size = 21
-//    char payload[128];   // size = 128
-//    PacketTail tail;    // size = 1
-//};
+//void logError(const std::string& message) {
+//    std::lock_guard<std::mutex> lock(log_mutex);
+//    if (logFile.is_open()) {
+//        logFile << "[ERROR] " << message << std::endl;
+//    }
+//}
+//
+//void logInfo(const std::string& message) {
+//    std::lock_guard<std::mutex> lock(log_mutex);
+//    if (logFile.is_open()) {
+//        logFile << "[INFO] " << message << std::endl;
+//    }
+//}
+//
+//// 프로그램 종료 시 호출하여 파일 닫기
+//void closeLogFile() {
+//    std::lock_guard<std::mutex> lock(log_mutex);
+//    if (logFile.is_open()) {
+//        logFile.close();
+//    }
+//}
 
 
-void Session::processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size) {
-    std::lock_guard<std::mutex> lock(packet_mutex);
-
-	// 애초에 넘어오는 값이 150이 때문에 옮기지 않고, 그냥 바로 분석하고 처리한다.
-    
-	/*PacketType pt = data->at(0) == 101 ? PacketType::JH : data->at(0) == 102 ? PacketType::YJ : PacketType::ES;
-	std::cout << "PacketType: " << static_cast<int>(pt) << std::endl;*/
-
-	if (data->at(0) == 101) {
-		JH_recv_packet_total_cnt++;
-	}
-	else if (data->at(0) == 102) {
-		YJ_recv_packet_total_cnt++;
-	}
-	else if (data->at(0) == 103) {
-		ES_recv_packet_total_cnt++;
-	}
-
-	// 체크섬 검증
-	std::vector<char> payload_data(data->begin() + 1, data->begin() + 1 + 128);
-	auto calculated_checksum = calculate_checksum(payload_data);
-	if (std::memcmp(data->data() + 17,
-		calculated_checksum.data(),
-		MD5_DIGEST_LENGTH) != 0) {
-
-		if (data->at(0) == 101) {
-			JY_recv_packet_fail_cnt++;
-		}
-		else if (data->at(0) == 102) {
-			YJ_recv_packet_fail_cnt++;
-		}
-		else if (data->at(0) == 103) {
-			ES_recv_packet_fail_cnt++;
-		}
-		LOGE << "Checksum validation failed";
-		return;
-	}
-
-
-	// tail 값 검증
-	if (data->at(149) != 255) {
-		if (data->at(0) == 101) {
-			JY_recv_packet_fail_cnt++;
-		}
-		else if (data->at(0) == 102) {
-			YJ_recv_packet_fail_cnt++;
-		}
-		else if (data->at(0) == 103) {
-			ES_recv_packet_fail_cnt++;
-		}
-		LOGE << "Invalid tail value";
-		return;
-	}
-
-	// 메시지 처리
-	std::string message(data->begin() + 1, data->begin() + 1 + 128);
-	std::string total_send_cnt = std::to_string(JH_recv_packet_total_cnt + YJ_recv_packet_total_cnt + ES_recv_packet_total_cnt);
-
-
-
-    
-
-
-
+//void Session::processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size) {
+//    std::lock_guard<std::mutex> lock(packet_mutex);
+//    if (size < 150) {
+//		LOGE << "Received not 150 bytes " << size;
+//    }
+//    
+//	/*PacketType pt = data->at(0) == 101 ? PacketType::JH : data->at(0) == 102 ? PacketType::YJ : PacketType::ES;
+//	std::cout << "PacketType: " << static_cast<int>(pt) << std::endl;*/
+//
+//	if (data->at(0) == 101) {
+//		JH_recv_packet_total_cnt++;
+//	}
+//	else if (data->at(0) == 102) {
+//		YJ_recv_packet_total_cnt++;
+//	}
+//	else if (data->at(0) == 103) {
+//		ES_recv_packet_total_cnt++;
+//	}
+//
+//	// 체크섬 검증
+//	//std::vector<char> payload_data(data->begin() + 1, data->begin() + 1 + 128);
+//	//auto calculated_checksum = calculate_checksum(payload_data);
+//	//if (std::memcmp(data->data() + 17,
+//	//	calculated_checksum.data(),
+//	//	MD5_DIGEST_LENGTH) != 0) {
+//
+//	//	if (data->at(0) == 101) {
+//	//		JY_recv_packet_fail_cnt++;
+//	//	}
+//	//	else if (data->at(0) == 102) {
+//	//		YJ_recv_packet_fail_cnt++;
+//	//	}
+//	//	else if (data->at(0) == 103) {
+//	//		ES_recv_packet_fail_cnt++;
+//	//	}
+//	//	LOGE << "Checksum validation failed";
+//	//	return;
+//	//}
+//
+//
+//	// tail 값 검증
+//	if (data->at(149) != -1) {
+//		if (data->at(0) == 101) {
+//			JY_recv_packet_fail_cnt++;
+//		}
+//		else if (data->at(0) == 102) {
+//			YJ_recv_packet_fail_cnt++;
+//		}
+//		else if (data->at(0) == 103) {
+//			ES_recv_packet_fail_cnt++;
+//		}
+//		LOGE << "Invalid tail value";
+//		return;
+//	}
+//
+//	// 메시지 처리
+//	std::string message(data->begin() + 21, data->begin() + 21 + 128);
+//	std::string total_send_cnt = std::to_string(JH_recv_packet_total_cnt + YJ_recv_packet_total_cnt + ES_recv_packet_total_cnt);
+//
+//	LOGI << message;
+//
+//	if (data->at(0) == 101) {
+//		JY_recv_packet_success_cnt++;
+//	}
+//	else if (data->at(0) == 102) {
+//		YJ_recv_packet_success_cnt++;
+//	}
+//	else if (data->at(0) == 103) {
+//		ES_recv_packet_success_cnt++;
+//	}
+//
+//}
 
     /*
    
@@ -453,7 +559,6 @@ void Session::processPacketInWorker(std::unique_ptr<std::vector<char>>& data, si
         }
     }
     */
-}
 
 // 블로그를 위한 내용 정리
 // async_read_some함수가 current_buffer을 150을 지정하면 150만큼 알아서 파씽해준다고 생각하고 간단히 넘어감.

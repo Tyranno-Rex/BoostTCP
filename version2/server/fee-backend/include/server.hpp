@@ -49,8 +49,8 @@ struct PacketTask {
 
 	PacketTask() = default;
 
-    PacketTask(std::vector<char>&& buffer, size_t s, std::shared_ptr<Session> sess)
-        : data(std::make_unique<std::vector<char>>(std::move(buffer)))
+    PacketTask(std::unique_ptr<std::vector<char>>&& buffer, size_t s, std::shared_ptr<Session> sess)
+        : data(std::move(buffer))
         , size(s)
         , session(sess) {
     }
@@ -74,18 +74,21 @@ struct PacketTask {
     PacketTask& operator=(const PacketTask&) = delete;
 };
 
+
 class PacketQueue {
 private:
     std::queue<PacketTask> tasks;
     std::mutex mutex;
     std::condition_variable condition;
     bool stopping = false;
-    size_t max_queue_size = 1000;
+    size_t max_queue_size = 100000;
 
 public:
     bool push(PacketTask&& task) {
         std::unique_lock<std::mutex> lock(mutex);
-        if (tasks.size() >= max_queue_size) {
+        condition.wait(lock, [this] { return tasks.size() < max_queue_size || stopping; });
+        if (stopping) {
+			LOGE << "PUSH PacketQueue is stopping";
             return false;
         }
         tasks.push(std::move(task));
@@ -96,10 +99,14 @@ public:
     bool pop(PacketTask& task) {
         std::unique_lock<std::mutex> lock(mutex);
         condition.wait(lock, [this] { return !tasks.empty() || stopping; });
-        if (stopping && tasks.empty()) return false;
+        if (stopping && tasks.empty()) {
+			LOGE << "POP PacketQueue is stopping";
+            return false;
+        }
 
         task = std::move(tasks.front());
         tasks.pop();
+        condition.notify_one();
         return true;
     }
 
