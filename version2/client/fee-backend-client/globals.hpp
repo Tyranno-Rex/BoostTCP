@@ -20,6 +20,7 @@ extern std::string shared_message;
 extern const char expected_hcv;
 extern const char expected_tcv;
 
+extern std::atomic<int> socket_pool_size;
 extern std::atomic<int> total_send_cnt;
 extern std::atomic<int> total_send_success_cnt;
 extern std::atomic<int> total_send_fail_cnt;
