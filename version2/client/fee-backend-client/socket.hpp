@@ -46,9 +46,14 @@ public:
         connect(); // Àç¿¬°á
     }
 
-    std::shared_ptr<tcp::socket> get_shared_socket() {
+    /*std::shared_ptr<tcp::socket> get_shared_socket() {
         return std::make_shared<tcp::socket>(std::move(socket_));
+    }*/
+
+    std::shared_ptr<tcp::socket> get_shared_socket() {
+        return std::shared_ptr<tcp::socket>(&socket_, [](tcp::socket*) {});
     }
+
 
 };
 

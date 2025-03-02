@@ -105,8 +105,8 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                     "You can't let your failures define you. "
                     "You have to let your failures teach you. "
                     "You have to let them show you what to do differently the next time.";
-                std::thread([thread_cnt, connection_cnt, msg, &io_context, host, port]() {
-
+                std::thread([thread_cnt, connection_cnt, msg, &io_context, host, port]() 
+                {
                     while (is_running) 
                     {
                         if (is_stop) {
@@ -120,21 +120,21 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                                     return std::make_shared<Socket>(io_context, host, port);
                                 }
                             );
-                            boost::asio::thread_pool pool(thread_cnt);
                             while (!is_stop && is_running) {
+                                boost::asio::thread_pool pool(thread_cnt);
                                 for (int i = 0; i < thread_cnt; ++i) {
                                     boost::asio::post(pool, [connection_cnt, msg, &socket_pool, i]() {
                                         handle_sockets(socket_pool, connection_cnt, msg, i);
                                         });
                                 }
+                                pool.join();
                             }
-                            pool.join();
                             socket_pool.close();
                         }
                         catch (std::exception& e) {
                             std::cerr << "Exception in debug mode: " << e.what() << std::endl;
                         }
-                    }
+                        }
                     }).detach();
                 }            
             if (message == "/exit")
