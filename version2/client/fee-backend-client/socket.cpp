@@ -43,13 +43,15 @@ void send_buffer(std::shared_ptr<tcp::socket> socket, std::shared_ptr<Packet> pa
     );
 }
 
-void handle_sockets(SocketPool& socket_pool, int connection_cnt, const std::string& message, int thread_num) {
+void handle_sockets(MemoryPool<Socket>& socket_pool, int connection_cnt, const std::string& message, int thread_num) {
     try {
         auto packet = create_packet(message);
-        auto socket = socket_pool.acquire();
 
         for (int i = 0; i < connection_cnt; ++i) {
-            send_buffer(socket, packet);
+            auto socket = socket_pool.acquire();
+			socket.get()->connect();
+            send_buffer(socket->get_shared_socket(), packet);
+			socket_pool.release(socket);
         }
     }
     catch (const std::exception& e) {

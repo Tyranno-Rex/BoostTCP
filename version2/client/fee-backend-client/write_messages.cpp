@@ -4,6 +4,7 @@
 #include "log.hpp"
 #include "socket.hpp"
 #include "utils.hpp"
+#include "memory_pool.hpp"
 
 #include <boost/asio/thread_pool.hpp>
 #include <boost/asio/post.hpp>
@@ -105,34 +106,37 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                     "You have to let your failures teach you. "
                     "You have to let them show you what to do differently the next time.";
                 std::thread([thread_cnt, connection_cnt, msg, &io_context, host, port]() {
-                    while (is_running) {
+
+                    while (is_running) 
+                    {
                         if (is_stop) {
                             std::this_thread::sleep_for(std::chrono::seconds(5));
                         }
                         try {
+                            int socket_cnt = 1000;
+                            
+                            MemoryPool<Socket> socket_pool(socket_cnt,
+                                [&io_context, &host, &port]() {
+                                    return std::make_shared<Socket>(io_context, host, port);
+                                }
+                            );
+                            boost::asio::thread_pool pool(thread_cnt);
                             while (!is_stop && is_running) {
-                                boost::asio::thread_pool pool(thread_cnt);
-                                
-                                int socket_cnt = 1000;
-                                SocketPool socket_pool(io_context, host, port, size_t(socket_cnt));
                                 for (int i = 0; i < thread_cnt; ++i) {
-									boost::asio::post(pool, [&socket_pool, connection_cnt, msg, i]() {
-										handle_sockets(socket_pool, connection_cnt, msg, i);
+                                    boost::asio::post(pool, [connection_cnt, msg, &socket_pool, i]() {
+                                        handle_sockets(socket_pool, connection_cnt, msg, i);
                                         });
                                 }
-                                pool.join();
-
-                                
-
-                                socket_pool.close();
                             }
+                            pool.join();
+                            socket_pool.close();
                         }
                         catch (std::exception& e) {
                             std::cerr << "Exception in debug mode: " << e.what() << std::endl;
                         }
                     }
-                    }).detach();  // detach() 또는 join()은 상황에 맞게 선택
-            }            
+                    }).detach();
+                }            
             if (message == "/exit")
             {
                 is_running = false;

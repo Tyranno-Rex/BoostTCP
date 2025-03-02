@@ -99,10 +99,6 @@ void monitorManager() {
 		ss << "YJ: " << YJ_recv_packet_total_cnt << " / " << YJ_recv_packet_success_cnt
 			<< " / " << YJ_recv_packet_fail_cnt << " success rate: "
 			<< (double)YJ_recv_packet_success_cnt / YJ_recv_packet_total_cnt * 100 << "%";
-
-        //ss << "YJ: " << YJ_recv_packet_total_cnt << " / " << YJ_recv_packet_success_cnt
-        //    << " / " << YJ_recv_packet_fail_cnt << " success rate: "
-        //    << (double)YJ_recv_packet_success_cnt / YJ_recv_packet_total_cnt * 100 << "%";
         sendToMonitorProcess(ss.str());
         ss.str("");
 

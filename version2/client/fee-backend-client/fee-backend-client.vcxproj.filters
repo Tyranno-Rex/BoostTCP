@@ -59,6 +59,9 @@
     <ClInclude Include="write_messages.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="memory_pool.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="config.ini">

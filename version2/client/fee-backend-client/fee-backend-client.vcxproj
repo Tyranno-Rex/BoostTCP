@@ -147,6 +147,7 @@
     <ClInclude Include="input.hpp" />
     <ClInclude Include="log.hpp" />
     <ClInclude Include="main.hpp" />
+    <ClInclude Include="memory_pool.hpp" />
     <ClInclude Include="socket.hpp" />
     <ClInclude Include="utils.hpp" />
     <ClInclude Include="write_messages.hpp" />
