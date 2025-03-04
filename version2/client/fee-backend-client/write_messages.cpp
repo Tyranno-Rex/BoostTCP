@@ -127,6 +127,7 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                                         handle_sockets(socket_pool, connection_cnt, msg, i);
                                         });
                                 }
+								std::this_thread::sleep_for(std::chrono::milliseconds(100));
                                 pool.join();
                             }
                             socket_pool.close();

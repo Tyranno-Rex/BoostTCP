@@ -58,20 +58,30 @@ int main(int argc, char* argv[]) {
         static plog::ColorConsoleAppender<plog::TxtFormatter> consoleAppender;
         plog::init(plog::verbose, &consoleAppender);
         std::thread inputConsoleThread(run_input_process_in_new_console);
-        std::thread io_thread([&io_context]() {
-            while (is_running)
-            {
-                io_context.run();
-            }
-            });
+        // 멀티스레드로 io_context 실행
+        std::vector<std::thread> io_threads;
+        size_t thread_count = std::thread::hardware_concurrency() * 0.5;
+        for (size_t i = 0; i < thread_count; ++i) {
+            io_threads.emplace_back([&io_context]() {
+                while (is_running) {
+                    io_context.run();
+                }
+                });
+        }
 
         write_messages(io_context, host, chat_port);
 
-        if (inputConsoleThread.joinable())
-        {
+        if (inputConsoleThread.joinable()) {
             inputConsoleThread.join();
         }
-        io_thread.detach();
+
+        // 모든 io_context 스레드가 종료될 때까지 대기
+        for (auto& thread : io_threads) {
+            if (thread.joinable()) {
+                thread.join();
+            }
+        }
+
         io_context.stop();
     }
     catch (std::exception& e) {
