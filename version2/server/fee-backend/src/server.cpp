@@ -43,9 +43,6 @@ void Server::chatRun() {
         initializeThreadPool();
         tcp::acceptor acceptor(io_context, tcp::endpoint(tcp::v4(), port));
         doAccept(acceptor);
-
-		//io_context.run();
-
         // io_context를 여러 스레드에서 실행
         std::vector<std::thread> io_threads;
         size_t thread_count = std::thread::hardware_concurrency() / 2;

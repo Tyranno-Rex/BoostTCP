@@ -13,15 +13,6 @@ extern std::atomic<int>
 extern std::atomic<int>
  JY_recv_packet_fail_cnt;
 
-extern std::atomic<int> 
-ReceiveConnectionCnt;
-extern std::atomic<int>
-Total_Packet_Cnt;
-extern std::atomic<int>
-Total_Packet_Cnt2;
-extern std::atomic<int>
-Total_Packet_Cnt3;
-
 extern std::atomic<int>
  YJ_recv_packet_total_cnt;
 extern std::atomic<int>
@@ -71,10 +62,6 @@ void Session::doRead() {
 // 데이터 처리 함수 추가
 void Session::handleReceivedData(size_t bytes_transferred) {
     std::lock_guard<std::mutex> lock(read_mutex);
-    if (bytes_transferred != 150) {
-		LOGE << "Received not 150 bytes " << bytes_transferred;
-    }
-	ReceiveConnectionCnt++;
 
     // 새로 받은, 데이터를 임시 버퍼에 복사
     std::vector<char> temp_buffer(current_buffer.begin(),
@@ -91,7 +78,6 @@ void Session::handleReceivedData(size_t bytes_transferred) {
     // 완전한 패킷 단위로 처리
     const size_t PACKET_SIZE = 150; // 패킷 크기
     size_t processed = 0;
-	int cnt = 0;
 
     while (processed + PACKET_SIZE <= temp_buffer.size()) {
         // 벡터를 이동하는 대신 복사하거나 참조를 사용
@@ -105,13 +91,6 @@ void Session::handleReceivedData(size_t bytes_transferred) {
         server.getPacketQueue().push(std::move(task));
 
         processed += PACKET_SIZE;
-        cnt++;
-    }
-
-	Total_Packet_Cnt += cnt;
-    
-    if (bytes_transferred != 150) {
-		LOGE << "processed: " << processed << " cnt: " << cnt << " bytes_transferred: " << bytes_transferred;
     }
 
     // 남은 데이터가 있으면 불완전 패킷으로 저장
@@ -123,10 +102,6 @@ void Session::handleReceivedData(size_t bytes_transferred) {
 
 void processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size) {
     const size_t PACKET_SIZE = 150;
-    int cnt = 0;
-    int cnt2 = 0;
-
-    cnt2 = size / PACKET_SIZE;
 
     size_t processed = 0;
     while (processed + PACKET_SIZE <= size) {
@@ -178,17 +153,5 @@ void processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size
         }
 
         processed += PACKET_SIZE;
-        cnt++;
     }
-    Total_Packet_Cnt2 += cnt;
-    Total_Packet_Cnt3 += cnt2;
 }
-
-// 블로그를 위한 내용 정리
-// async_read_some함수가 current_buffer을 150을 지정하면 150만큼 알아서 파씽해준다고 생각하고 간단히 넘어감.
-// 해당 함수는 다음과 같은 상황을 위해서 추가되었다.
-// 1. 패킷이 330 바이트가 들어오고 뒤에 120 바이트가 들어온다고 하자.
-// 2. 이전 코드에서 패킷은 150, 150을 처리하고, 나머지 30 바이트를 저장한다. 
-//      이후 들어오게 되는 120바이트도 30바이트와 결합하는 것이 아니라 따로 120바이트가 하나의 task로 저장이 된다.
-// 3. 그렇게 되면 30과 120은 의미가 없는 값이기 때문에 해당 패킷의 내용은 유실되는 것이다.
-// 4. 따라서 이전에 저장된 불완전 패킷이 있으면 현재 받은 데이터와 합치는 과정이 필요하다.
