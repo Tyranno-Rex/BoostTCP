@@ -76,7 +76,7 @@ void Session::handleReceivedData(size_t bytes_transferred) {
     }
 
     // 완전한 패킷 단위로 처리
-    const size_t PACKET_SIZE = 150; // 패킷 크기
+    const size_t PACKET_SIZE = 154; // 패킷 크기
     size_t processed = 0;
 
     while (processed + PACKET_SIZE <= temp_buffer.size()) {
@@ -101,57 +101,120 @@ void Session::handleReceivedData(size_t bytes_transferred) {
 }
 
 void processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size) {
-    const size_t PACKET_SIZE = 150;
+    const size_t PACKET_SIZE = 154;
 
     size_t processed = 0;
+	uint32_t sequence = 0;
     while (processed + PACKET_SIZE <= size) {
         std::vector<char> packet(data->begin() + processed, data->begin() + processed + PACKET_SIZE);
 
-        if (packet[0] == 101) {
-            JH_recv_packet_total_cnt++;
-        }
-        else if (packet[0] == 102) {
-            YJ_recv_packet_total_cnt++;
-        }
-        else if (packet[0] == 103) {
-            ES_recv_packet_total_cnt++;
-        }
-        else {
-            LOGE << "Unknown packet type";
-        }
+		// PacketHeader
+		uint32_t seq = *reinterpret_cast<uint32_t*>(packet.data());
+		PacketType type = static_cast<PacketType>(packet[4]);
+		std::string checkSum(packet.begin() + 5, packet.begin() + 21);
+		uint32_t packet_size = *reinterpret_cast<uint32_t*>(packet.data() + 21);
 
-        if (packet[149] != -1) {
-            if (packet[0] == 101) {
-                JY_recv_packet_fail_cnt++;
+		switch (type) {
+		case PacketType::defEchoString:
+			break;
+		case PacketType::JH:
+			JH_recv_packet_total_cnt++;
+			break;
+		case PacketType::YJ:
+			YJ_recv_packet_total_cnt++;
+			break;
+		case PacketType::ES:
+			ES_recv_packet_total_cnt++;
+			break;
+		default:
+			LOGE << "Unknown packet type";
+			return;
+		}
+
+		// PacketTail
+		uint8_t tail = packet[153];
+		if (tail != -1) {
+			if (type == PacketType::JH) {
+				JY_recv_packet_fail_cnt++;
+                return;
+			}
+			else if (type == PacketType::YJ) {
+				YJ_recv_packet_fail_cnt++;
+                return;
             }
-            else if (packet[0] == 102) {
-                YJ_recv_packet_fail_cnt++;
+			else if (type == PacketType::ES) {
+				ES_recv_packet_fail_cnt++;
+                return;
             }
-            else if (packet[0] == 103) {
-                ES_recv_packet_fail_cnt++;
-            }
-            LOGE << "Invalid tail value";
-            return;
-        }
+		}
 
-        std::string message(packet.begin() + 21, packet.begin() + 21 + 128);
-        std::string total_send_cnt = std::to_string(JH_recv_packet_total_cnt + YJ_recv_packet_total_cnt + ES_recv_packet_total_cnt);
+		std::string message(packet.begin() + 25, packet.begin() + 25 + 128);
+		std::string total_send_cnt = std::to_string(JH_recv_packet_total_cnt + YJ_recv_packet_total_cnt + ES_recv_packet_total_cnt);
 
-        LOGI << message;
+        LOGI << "seq : " << seq << "message : " << message;
 
-        if (packet[0] == 101) {
-            JY_recv_packet_success_cnt++;
-        }
-        else if (packet[0] == 102) {
-            YJ_recv_packet_success_cnt++;
-        }
-        else if (packet[0] == 103) {
-            ES_recv_packet_success_cnt++;
-        }
-        else {
-            LOGE << "Unknown packet type";
-        }
+		if (type == PacketType::JH) {
+			JY_recv_packet_success_cnt++;
+		}
+		else if (type == PacketType::YJ) {
+			YJ_recv_packet_success_cnt++;
+		}
+		else if (type == PacketType::ES) {
+			ES_recv_packet_success_cnt++;
+		}
+		else {
+			LOGE << "Unknown packet type";
+		}
 
-        processed += PACKET_SIZE;
+		processed += PACKET_SIZE;
+
+		// before packet analysis
+        
+        //if (packet[0] == 101) {
+        //    JH_recv_packet_total_cnt++;
+        //}
+        //else if (packet[0] == 102) {
+        //    YJ_recv_packet_total_cnt++;
+        //}
+        //else if (packet[0] == 103) {
+        //    ES_recv_packet_total_cnt++;
+        //}
+        //else {
+        //    LOGE << "Unknown packet type";
+        //}
+
+        //if (packet[149] != -1) {
+        //    if (packet[0] == 101) {
+        //        JY_recv_packet_fail_cnt++;
+        //    }
+        //    else if (packet[0] == 102) {
+        //        YJ_recv_packet_fail_cnt++;
+        //    }
+        //    else if (packet[0] == 103) {
+        //        ES_recv_packet_fail_cnt++;
+        //    }
+        //    LOGE << "Invalid tail value";
+        //    return;
+        //}
+
+        //std::string message(packet.begin() + 21, packet.begin() + 21 + 128);
+        //std::string total_send_cnt = std::to_string(JH_recv_packet_total_cnt + YJ_recv_packet_total_cnt + ES_recv_packet_total_cnt);
+
+        //LOGI << message;
+
+        //if (packet[0] == 101) {
+        //    JY_recv_packet_success_cnt++;
+        //}
+        //else if (packet[0] == 102) {
+        //    YJ_recv_packet_success_cnt++;
+        //}
+        //else if (packet[0] == 103) {
+        //    ES_recv_packet_success_cnt++;
+        //}
+        //else {
+        //    LOGE << "Unknown packet type";
+        //}
+
+        //processed += PACKET_SIZE;
     }
 }

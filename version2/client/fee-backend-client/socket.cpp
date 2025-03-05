@@ -53,6 +53,7 @@ void handle_sockets(MemoryPool<Socket>& socket_pool, int connection_cnt, const s
 
 
         for (int i = 0; i < connection_cnt; ++i) {
+			packet.get()->header.seq = i;
             send_buffer(socket->get_shared_socket(), packet);
 			socket_pool.release(socket);
         }

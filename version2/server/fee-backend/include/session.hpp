@@ -23,8 +23,8 @@ class Session : public std::enable_shared_from_this<Session> {
 private:
     tcp::socket socket;
     Server& server;
-    std::array<char, 1500> current_buffer;   // 현재 읽기용 버퍼
-    std::array<char, 150> packet_buffer;    // 패킷 조립용 버퍼
+    std::array<char, 1540> current_buffer;   // 현재 읽기용 버퍼
+    std::array<char, 154> packet_buffer;    // 패킷 조립용 버퍼
     size_t packet_buffer_offset = 0;        // 패킷 버퍼의 현재 위치
     std::mutex packet_mutex;
     std::mutex read_mutex;
@@ -46,7 +46,7 @@ public:
 	//void processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size);
 
     void handleReceivedData(size_t bytes_transferred); // 데이터 처리 함수 추가
-	void handleReceivedData(std::array<char, 150>& buffer, size_t bytes_transferred); // 데이터 처리 함수 추가
+	void handleReceivedData(std::array<char, 154>& buffer, size_t bytes_transferred); // 데이터 처리 함수 추가
 private:
     std::vector<char> partial_packet_buffer; // 불완전 패킷 저장 버퍼 추가
     void doRead();

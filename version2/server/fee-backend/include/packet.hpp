@@ -12,20 +12,20 @@ enum class PacketType : uint8_t {
 
 // pack(push, 1): 
 #pragma pack(push, 1)
-
-struct PacketHeader {
-	PacketType type;           // 패킷 타입: 100
-    char checkSum[16];
-    uint32_t size;
+struct PacketHeader { 		// header size = 25	
+	uint32_t seqNum;			// size = 4
+	PacketType type;		// size = 1   
+	char checkSum[16];		// size = 16	
+	uint32_t size;			// size = 4
 };
 
-struct PacketTail {
-    uint8_t value;
+struct PacketTail {			// tail size = 1
+	uint8_t value;          // size = 1
 };
 
-struct Packet {
-	PacketHeader header; // size = 21
-	char payload[128];   // size = 128
-	PacketTail tail;    // size = 1
+struct Packet {				// packet size = 154
+	PacketHeader header;    // size = 25
+	char payload[128];      // size = 128
+	PacketTail tail;        // size = 1
 };
 #pragma pack(pop)
