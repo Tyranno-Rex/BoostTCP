@@ -51,6 +51,14 @@ public:
     
     }
 
+	void disconnect() {
+		if (socket_.is_open()) {
+			boost::system::error_code ec;
+			socket_.shutdown(tcp::socket::shutdown_both, ec);
+			socket_.close(ec);
+		}
+	}
+
 
     // 소켓을 MemoryPool에서 재사용할 수 있도록 리셋
     void reset() {

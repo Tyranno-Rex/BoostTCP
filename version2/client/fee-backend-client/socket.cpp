@@ -9,7 +9,8 @@ bool send_buffer_success(const boost::system::error_code& ec, std::size_t) {
         LOGE << "Error writing to socket: " << ec.message();
         total_send_fail_cnt++;
     } else {
-        LOGI << "Message sent successfully";
+        if ((total_send_success_cnt % 10000) == 0)
+            LOGI << "Message sent successfully";
         total_send_success_cnt++;
     }
     total_send_cnt++;
@@ -55,8 +56,9 @@ void handle_sockets(MemoryPool<Socket>& socket_pool, int connection_cnt, const s
         for (int i = 0; i < connection_cnt; ++i) {
 			packet.get()->header.seq = i;
             send_buffer(socket->get_shared_socket(), packet);
-			socket_pool.release(socket);
         }
+		socket.get()->disconnect();
+		socket_pool.release(socket);
     }
     catch (const std::exception& e) {
         std::scoped_lock lock(cout_mutex);
