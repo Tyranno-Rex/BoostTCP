@@ -27,9 +27,7 @@ extern std::atomic<int>
 extern std::atomic<int>
  ES_recv_packet_fail_cnt;
 
-void Session::stop() {
-	socket.close();
-}
+const size_t PACKET_SIZE = 154; // 패킷 크기
 
 void Session::doRead() {
 
@@ -76,7 +74,6 @@ void Session::handleReceivedData(size_t bytes_transferred) {
     }
 
     // 완전한 패킷 단위로 처리
-    const size_t PACKET_SIZE = 154; // 패킷 크기
     size_t processed = 0;
 
     while (processed + PACKET_SIZE <= temp_buffer.size()) {
@@ -86,9 +83,18 @@ void Session::handleReceivedData(size_t bytes_transferred) {
             temp_buffer.begin() + processed + PACKET_SIZE
         );
 
-        // 패킷 큐에 추가
-        PacketTask task(std::move(packet), PACKET_SIZE);
-        server.getPacketQueue().push(std::move(task));
+        uint32_t received_seqnum = 0;
+		std::memcpy(&received_seqnum, packet.get()->data(), sizeof(uint32_t));
+
+        {
+            std::lock_guard<std::mutex> heap_lock(heap_mutex);
+            //packet_heap.emplace(received_seqnum, std::move(packet));
+            packet_heap.emplace(received_seqnum, std::move(*packet));
+        }
+
+        //// 패킷 큐에 추가
+        //PacketTask task(std::move(packet), PACKET_SIZE);
+        //server.getPacketQueue().push(std::move(task));
 
         processed += PACKET_SIZE;
     }
@@ -98,6 +104,25 @@ void Session::handleReceivedData(size_t bytes_transferred) {
         partial_packet_buffer.assign(temp_buffer.begin() + processed,
             temp_buffer.end());
     }
+}
+
+
+void Session::stop() {
+    LOGI << "Client disconnected, processing stored packets...";
+
+    std::lock_guard<std::mutex> heap_lock(heap_mutex);
+
+    while (!packet_heap.empty()) {
+        auto [seqnum, packet] = packet_heap.top();
+        packet_heap.pop();
+
+        // 패킷 처리 로직
+        PacketTask task(std::make_unique<std::vector<char>>(std::move(packet)), PACKET_SIZE);
+        server.getPacketQueue().push(std::move(task));
+    }
+
+    server.removeClient(shared_from_this());
+	socket.close();
 }
 
 void processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size) {

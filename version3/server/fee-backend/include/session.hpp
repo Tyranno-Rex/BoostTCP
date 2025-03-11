@@ -22,12 +22,22 @@ using tcp = net::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 class Session : public std::enable_shared_from_this<Session> {
 private:
     tcp::socket socket;
+    
     Server& server;
+    
     std::array<char, 1540> current_buffer;   // 현재 읽기용 버퍼
     std::array<char, 154> packet_buffer;    // 패킷 조립용 버퍼
+    
+    std::priority_queue<
+        std::pair<uint32_t, std::vector<char>>,  // (seqnum, packet)
+        std::vector<std::pair<uint32_t, std::vector<char>>>,
+		std::greater<>> packet_heap;  // 패킷 우선순위 큐
+    
     size_t packet_buffer_offset = 0;        // 패킷 버퍼의 현재 위치
+    
     std::mutex packet_mutex;
     std::mutex read_mutex;
+    std::mutex heap_mutex;
 
 public:
     Session(tcp::socket socket_, Server& server_)
