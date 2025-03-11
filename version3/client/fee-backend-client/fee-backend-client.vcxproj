@@ -135,22 +135,22 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="globals.cpp" />
-    <ClCompile Include="input.cpp" />
-    <ClCompile Include="log.cpp" />
+    <ClCompile Include="input_console.cpp" />
+    <ClCompile Include="log_console.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="socket.cpp" />
     <ClCompile Include="utils.cpp" />
-    <ClCompile Include="write_messages.cpp" />
+    <ClCompile Include="handle_message.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="globals.hpp" />
     <ClInclude Include="input.hpp" />
-    <ClInclude Include="log.hpp" />
+    <ClInclude Include="log_console.hpp" />
     <ClInclude Include="main.hpp" />
     <ClInclude Include="memory_pool.hpp" />
     <ClInclude Include="socket.hpp" />
     <ClInclude Include="utils.hpp" />
-    <ClInclude Include="write_messages.hpp" />
+    <ClInclude Include="handle_messages.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="config.ini" />

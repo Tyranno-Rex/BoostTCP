@@ -1,5 +1,5 @@
 #pragma once
-#include "log.hpp"
+#include "log_console.hpp"
 #include "globals.hpp"
 
 #include <string>

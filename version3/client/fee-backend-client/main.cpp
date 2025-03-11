@@ -3,8 +3,8 @@
 #include "utils.hpp"
 #include "globals.hpp"
 #include "input.hpp"
-#include "log.hpp"
-#include "write_messages.hpp"
+#include "log_console.hpp"
+#include "handle_messages.hpp"
 
 int main(int argc, char* argv[]) {
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);

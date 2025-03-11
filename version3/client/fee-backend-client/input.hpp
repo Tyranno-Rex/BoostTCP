@@ -1,13 +1,4 @@
-//#pragma once
-//
-//#ifndef INPUT_THREAD_HPP
-//#define INPUT_THREAD_HPP
-//
-//// 사용자 명령을 받는 쓰레드 함수
-//void input_thread();
-//
-//#endif // INPUT_THREAD_HPP
-
+#pragma once
 
 #ifndef INPUT_PROCESS_HPP
 #define INPUT_PROCESS_HPP

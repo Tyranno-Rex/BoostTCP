@@ -27,13 +27,13 @@
     <ClCompile Include="globals.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="input.cpp">
+    <ClCompile Include="input_console.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="log.cpp">
+    <ClCompile Include="log_console.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="write_messages.cpp">
+    <ClCompile Include="handle_message.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -53,10 +53,10 @@
     <ClInclude Include="input.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="log.hpp">
+    <ClInclude Include="log_console.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="write_messages.hpp">
+    <ClInclude Include="handle_messages.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="memory_pool.hpp">
