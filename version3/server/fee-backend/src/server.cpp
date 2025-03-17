@@ -8,6 +8,8 @@
 #include <chrono>
 #include <iomanip>
 
+extern std::atomic<int> Session_Count;
+
 extern std::atomic<int> JH_recv_packet_total_cnt;
 extern std::atomic<int> JY_recv_packet_success_cnt;
 extern std::atomic<int> JY_recv_packet_fail_cnt;
@@ -31,6 +33,7 @@ void Server::initializeThreadPool() {
             while (is_running) {
                 PacketTask task;  
                 if (packet_queue.pop(task)) {
+					LOGD << "tasks sid: " << task.session_id << " seq: " << task.seq_num;
 					processPacketInWorker(task.data, task.size);
                 }
             }
@@ -72,6 +75,8 @@ void Server::doAccept(tcp::acceptor& acceptor) {
 				auto session = std::make_shared<Session>(std::move(socket), *this);
                 {
                     std::lock_guard<std::mutex> lock(clients_mutex);
+					Session_Count++;
+					session.get()->setSessionID(Session_Count);
 					LOGI << "New client connected";
                     clients.push_back(session);
                 }

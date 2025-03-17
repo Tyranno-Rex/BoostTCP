@@ -23,32 +23,42 @@ int main(int argc, char* argv[]) {
 
     std::wstring section = stringToWString("SERVER");
     std::wstring key;
-    if (number == "1") {
-        key = stringToWString("JH");
-    }
-    else if (number == "2") {
-        key = stringToWString("YJ");
-    }
-    else if (number == "3") {
-        key = stringToWString("ES");
-    }
-    else {
-        key = stringToWString("Default");
-        std::cout << "Invalid input. Using default(local) address.\n";
-    }
-    std::wstring file_path = stringToWString(".\\config.ini");
-    std::wstring default_value = stringToWString(".");
+    //if (number == "1") {
+    //    key = stringToWString("JH");
+    //}
+    //else if (number == "2") {
+    //    key = stringToWString("YJ");
+    //}
+    //else if (number == "3") {
+    //    key = stringToWString("ES");
+    //}
+    //else {
+    //    key = stringToWString("Default");
+    //    std::cout << "Invalid input. Using default(local) address.\n";
+    //}
 
-    GetPrivateProfileString(section.c_str(), key.c_str(), default_value.c_str(), cBuf, 1024, file_path.c_str());
-    std::wstring host_wstr(cBuf);
-    host = std::string(host_wstr.begin(), host_wstr.end());
 
-    memset(cBuf, 0, sizeof(cBuf));  // 버퍼 초기화
-    key = L"PORT";
+    //JH = 192.168.20.241
+    //    YJ = 192.168.20.158
+    //    ES = 192.168.21.96
+    //    Default = 127.0.0.1
+    //    PORT = 7777
+    //std::wstring file_path = stringToWString(".\\config.ini");
+    //std::wstring default_value = stringToWString(".");
 
-    GetPrivateProfileString(section.c_str(), key.c_str(), default_value.c_str(), cBuf, 1024, file_path.c_str());
-    std::wstring port_wstr(cBuf);
-    chat_port = std::string(port_wstr.begin(), port_wstr.end());
+    //GetPrivateProfileString(section.c_str(), key.c_str(), default_value.c_str(), cBuf, 1024, file_path.c_str());
+    //std::wstring host_wstr(cBuf);
+    //host = std::string(host_wstr.begin(), host_wstr.end());
+
+    //memset(cBuf, 0, sizeof(cBuf));  // 버퍼 초기화
+    //key = L"PORT";
+
+    //GetPrivateProfileString(section.c_str(), key.c_str(), default_value.c_str(), cBuf, 1024, file_path.c_str());
+    //std::wstring port_wstr(cBuf);
+    //chat_port = std::string(port_wstr.begin(), port_wstr.end());
+
+    host = "127.0.0.1";
+    chat_port = "7777";
 
     std::cout << "Host: " << host << std::endl;
 	std::cout << "Port: " << chat_port << std::endl;

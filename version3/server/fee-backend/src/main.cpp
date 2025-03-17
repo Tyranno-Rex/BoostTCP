@@ -15,6 +15,8 @@
 std::atomic<bool> running(true);
 MemoryPool g_memory_pool;
 
+std::atomic<int> Session_Count = 0;
+
 std::atomic<int> JH_recv_packet_total_cnt = 0;
 std::atomic<int> JY_recv_packet_success_cnt = 0;
 std::atomic<int> JY_recv_packet_fail_cnt = 0;
