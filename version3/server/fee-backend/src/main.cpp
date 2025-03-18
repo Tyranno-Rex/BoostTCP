@@ -13,16 +13,14 @@
 #endif
 
 std::atomic<bool> running(true);
-//MemoryPool g_memory_pool;
-MemoryPool<char[1540]> g_memory_pool;
-
+MemoryPool g_memory_pool;
 PacketChecker g_packet_checker;
 
 std::atomic<int> Session_Count = 0;
 
 std::atomic<int> JH_recv_packet_total_cnt = 0;
-std::atomic<int> JH_recv_packet_success_cnt = 0;
-std::atomic<int> JH_recv_packet_fail_cnt = 0;
+std::atomic<int> JY_recv_packet_success_cnt = 0;
+std::atomic<int> JY_recv_packet_fail_cnt = 0;
 
 std::atomic<int> YJ_recv_packet_total_cnt = 0;
 std::atomic<int> YJ_recv_packet_success_cnt = 0;
@@ -84,9 +82,9 @@ void monitorManager() {
 
         std::stringstream ss;
 
-        ss << "JH: " << JH_recv_packet_total_cnt << " / " << JH_recv_packet_success_cnt
-            << " / " << JH_recv_packet_fail_cnt << " success rate: "
-            << (double)JH_recv_packet_success_cnt / JH_recv_packet_total_cnt * 100 << "%";
+        ss << "JH: " << JH_recv_packet_total_cnt << " / " << JY_recv_packet_success_cnt
+            << " / " << JY_recv_packet_fail_cnt << " success rate: "
+            << (double)JY_recv_packet_success_cnt / JH_recv_packet_total_cnt * 100 << "%";
         sendToMonitorProcess(ss.str());
         ss.str("");
         
@@ -159,15 +157,9 @@ int main(void) {
         LOGE << "Server start";
         boost::asio::io_context io_context;
         Server chatServer(io_context, 7777);
-<<<<<<< HEAD
         //Server consoleServer(io_context, 7778);
-        
-=======
-        Server consoleServer(io_context, 7778);
->>>>>>> parent of cfe8a2e (클라 메모리 릭 및 서버 sequence 순서 처리 완료 -> 클라이언트 세션 별 처리되는 스레드를 지정함으로써 순서를 보장함.)
         // Memory pool �ʱ�ȭ
-		g_memory_pool.init(10000);
-
+        g_memory_pool.init(10000);
         //plog �ʱ�ȭ
         static plog::ColorConsoleAppender<plog::TxtFormatter> consoleAppender;
         plog::init(plog::verbose, &consoleAppender);
@@ -189,7 +181,7 @@ int main(void) {
         }
 
         // ���� ���� ó��
-        consoleServer.consoleStop();
+        //consoleServer.consoleStop();
         chatServer.chatStop();
 
         // ������ ����

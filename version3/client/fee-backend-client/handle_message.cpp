@@ -40,8 +40,8 @@ static inline void trim(std::string& s) {
 
 
 void write_messages(boost::asio::io_context& io_context, const std::string& host, const std::string& port) {
-<<<<<<< HEAD
-=======
+    
+    /*
     // »ç¿ëÀÚ ¸í·É ÀÔ·Â ¾²·¹µå ½ÃÀÛ
     //std::thread inputThread(input_thread);
 
@@ -84,7 +84,8 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
         logThread.detach();
 
     }
->>>>>>> parent of cfe8a2e (í´ë¼ ë©”ëª¨ë¦¬ ë¦­ ë° ì„œë²„ sequence ìˆœì„œ ì²˜ë¦¬ ì™„ë£Œ -> í´ë¼ì´ì–¸íŠ¸ ì„¸ì…˜ ë³„ ì²˜ë¦¬ë˜ëŠ” ìŠ¤ë ˆë“œë¥¼ ì§€ì •í•¨ìœ¼ë¡œì¨ ìˆœì„œë¥¼ ë³´ì¥í•¨.)
+
+    */
 
     try {
         while (is_running) {
@@ -97,42 +98,6 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
             
 			trim(message);
 			std::cout << "Received command: " << message << std::endl;
-
-			// Æ¯Á¤ °³¼ö¸¸Å­¸¸ ¸Ş½ÃÁö Àü¼Û
-            if (message.rfind("/send", 0) == 0) {
-                std::istringstream iss(message.substr(6));
-                int send_cnt, thread_cnt;
-				if (!(iss >> send_cnt >> thread_cnt) || send_cnt <= 0 || thread_cnt <= 0) {
-                    continue;
-                }
-
-                std::string msg =
-                    "You can't let your failures define you. "
-                    "You have to let your failures teach you. "
-                    "You have to let them show you what to do differently the next time.";
-
-                int socket_cnt = 10000;
-
-                MemoryPool<Socket> socket_pool(socket_cnt,
-                    [&io_context, &host, &port]() {
-                        return std::make_shared<Socket>(io_context, host, port);
-                    }
-                );
-                boost::asio::thread_pool pool(thread_cnt);
-
-                int send_cnt_per_thread = send_cnt / thread_cnt;
-
-				LOGI << "send_cnt: " << send_cnt << " / thread_cnt: " << thread_cnt << " / send_cnt_per_thread: " << send_cnt_per_thread;
-				LOGI << "thread_cnt * send_cnt_per_thread: " << thread_cnt * send_cnt_per_thread;
-
-                for (int i = 0; i < thread_cnt; ++i) {
-					LOGI << "Thread " << i << " started";
-                    boost::asio::post(pool, [send_cnt_per_thread, msg, &socket_pool, i]() {
-                        handle_sockets(socket_pool, send_cnt_per_thread, msg, i);
-                        });
-                }
-            }
-			
 
             if (message.rfind("/debug", 0) == 0) {
                 std::istringstream iss(message.substr(7));
@@ -152,7 +117,7 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                             std::this_thread::sleep_for(std::chrono::seconds(5));
                         }
                         try {
-                            int socket_cnt = 10000;
+                            int socket_cnt = 1000;
                             
                             MemoryPool<Socket> socket_pool(socket_cnt,
                                 [&io_context, &host, &port]() {
@@ -166,6 +131,7 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                                         handle_sockets(socket_pool, connection_cnt, msg, i);
                                         });
                                 }
+								std::this_thread::sleep_for(std::chrono::milliseconds(100));
                                 pool.join();
                             }
                             socket_pool.close();
@@ -197,16 +163,25 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                 system("clear");
 #endif
             }
+            else if (message == "/stats")
+            {
+                for (int i = 0; i < 5; ++i) {
+                    LOGD << "Total: " << total_send_cnt.load() << " / Success: " << total_send_success_cnt.load()
+                        << " / Fail: " << total_send_fail_cnt.load() << " / Success Rate: "
+                        << (total_send_cnt.load() > 0
+                            ? (double)total_send_success_cnt.load() / total_send_cnt.load() * 100
+                            : 0) << "%";
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                }
+            }
         }
     }
     catch (std::exception& e) {
         std::cerr << "Exception in write thread: " << e.what() << std::endl;
     }
-<<<<<<< HEAD
-=======
 
     // ÇÁ·Î¼¼½º Á¤¸®
-        
+    /*
     if (pinfo.hProcess) {
         TerminateProcess(pinfo.hProcess, 0);
         CloseHandle(pinfo.hProcess);
@@ -214,5 +189,5 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
     }
     CloseHandle(hPipeIn_Read);
     CloseHandle(hPipeIn_Write);
->>>>>>> parent of cfe8a2e (í´ë¼ ë©”ëª¨ë¦¬ ë¦­ ë° ì„œë²„ sequence ìˆœì„œ ì²˜ë¦¬ ì™„ë£Œ -> í´ë¼ì´ì–¸íŠ¸ ì„¸ì…˜ ë³„ ì²˜ë¦¬ë˜ëŠ” ìŠ¤ë ˆë“œë¥¼ ì§€ì •í•¨ìœ¼ë¡œì¨ ìˆœì„œë¥¼ ë³´ì¥í•¨.)
+    */
 }

@@ -22,28 +22,58 @@ extern std::atomic<int> ES_recv_packet_total_cnt;
 extern std::atomic<int> ES_recv_packet_success_cnt;
 extern std::atomic<int> ES_recv_packet_fail_cnt;
 
+//void Server::initializeThreadPool() {
+//    is_running = true;
+//    size_t thread_count = std::thread::hardware_concurrency() / 2;
+//	std::cout << "Thread count: " << thread_count << std::endl;
+//
+//    for (size_t i = 0; i < thread_count; ++i) {
+//        worker_threads.emplace_back([this]() {
+//            LOGI << "Worker thread started";
+//            while (is_running) {
+//                PacketTask task;  
+//                if (packet_queue.pop(task)) {
+//					processPacketInWorker(task.session_id, task.data, task.size);
+//                }
+//            }
+//            });
+//    }
+//}
+
 void Server::initializeThreadPool() {
     is_running = true;
-<<<<<<< HEAD
-    size_t thread_count = std::thread::hardware_concurrency();
-    std::cout << "Thread count: " << thread_count << std::endl;
-=======
     size_t thread_count = std::thread::hardware_concurrency() / 2;
-	std::cout << "Thread count: " << thread_count << std::endl;
->>>>>>> parent of cfe8a2e (í´ë¼ ë©”ëª¨ë¦¬ ë¦­ ë° ì„œë²„ sequence ìˆœì„œ ì²˜ë¦¬ ì™„ë£Œ -> í´ë¼ì´ì–¸íŠ¸ ì„¸ì…˜ ë³„ ì²˜ë¦¬ë˜ëŠ” ìŠ¤ë ˆë“œë¥¼ ì§€ì •í•¨ìœ¼ë¡œì¨ ìˆœì„œë¥¼ ë³´ì¥í•¨.)
+    std::cout << "Thread count: " << thread_count << std::endl;
 
+    // worker Àü¿ë PacketQueue¸¦ thread_count Å©±â·Î ÃÊ±âÈ­ (default constructor°¡ È£ÃâµÊ)
+    worker_task_queues.resize(thread_count);
+
+    // Worker threads: °¢ worker´Â ÀÚ½ÅÀÇ PacketQueue¿¡¼­ ÀÛ¾÷À» popÇÏ¿© Ã³¸®
     for (size_t i = 0; i < thread_count; ++i) {
-        worker_threads.emplace_back([this]() {
-            LOGI << "Worker thread started";
+        worker_threads.emplace_back([this, i]() {
             while (is_running) {
-                PacketTask task;  
-                if (packet_queue.pop(task)) {
-					processPacketInWorker(task.session_id, task.data, task.size);
+                PacketTask task;
+                // °¢ PacketQueue´Â ÀÚÃ¼ µ¿±âÈ­¸¦ °¡Áö°í ÀÖÀ½.
+                if (worker_task_queues[i].pop(task)) {
+                    processPacketInWorker(task.session_id, task.data, task.size);
                 }
             }
             });
     }
+
+    // Pop thread: packet_queue¿¡¼­ ÀÛ¾÷À» popÇÑ ÈÄ, session_id % thread_count¿¡ µû¶ó ÇØ´ç workerÀÇ queue¿¡ push
+    pop_thread = std::thread([this, thread_count]() {
+        while (is_running) {
+            PacketTask task;
+            if (packet_queue.pop(task)) {
+                size_t idx = static_cast<size_t>(task.session_id) % thread_count;
+                worker_task_queues[idx].push(std::move(task));
+            }
+            // ÇÊ¿ä¿¡ µû¶ó ÂªÀº ´ë±â ½Ã°£À» ³Ö¾î busy-waiting ¿ÏÈ­ °¡´É
+        }
+        });
 }
+
 
 void Server::chatRun() {
     try {
@@ -81,7 +111,7 @@ void Server::doAccept(tcp::acceptor& acceptor) {
                     std::lock_guard<std::mutex> lock(clients_mutex);
 					Session_Count++;
 					session.get()->setSessionID(Session_Count);
-					//LOGI << "New client connected";
+					LOGI << "New client connected";
                     clients.push_back(session);
                 }
                 session->start();
