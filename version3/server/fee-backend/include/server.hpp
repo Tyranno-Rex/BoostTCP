@@ -96,6 +96,34 @@ private:
     size_t max_queue_size = 1000000;
 
 public:
+    PacketQueue() = default;
+
+    // 복사 생성자/대입 연산은 삭제
+    PacketQueue(const PacketQueue&) = delete;
+    PacketQueue& operator=(const PacketQueue&) = delete;
+
+    // move 생성자: 내부의 tasks와 상태만 이동, mutex와 condition은 새로 기본 생성됨
+    PacketQueue(PacketQueue&& other) noexcept {
+        std::lock_guard<std::mutex> lock(other.mutex);
+        tasks = std::move(other.tasks);
+        stopping = other.stopping;
+        max_queue_size = other.max_queue_size;
+        // mutex와 condition은 기본 상태로 남음.
+    }
+
+    PacketQueue& operator=(PacketQueue&& other) noexcept {
+        if (this != &other) {
+            std::lock_guard<std::mutex> lock_this(mutex);
+            std::lock_guard<std::mutex> lock_other(other.mutex);
+            tasks = std::move(other.tasks);
+            stopping = other.stopping;
+            max_queue_size = other.max_queue_size;
+            // mutex와 condition은 그대로.
+        }
+        return *this;
+    }
+
+
     bool push(PacketTask&& task) {
         std::unique_lock<std::mutex> lock(mutex);
         condition.wait(lock, [this] { return tasks.size() < max_queue_size || stopping; });
@@ -143,12 +171,29 @@ class Server {
     std::mutex clients_mutex;
 
     std::vector<std::thread> worker_threads;
+	std::thread pop_thread;
+
+
     PacketQueue packet_queue;
+
+    // 각 worker마다 전용 task queue, mutex, condition_variable 생성
+	std::vector<PacketQueue> worker_task_queues;
+    //std::vector<std::mutex> worker_task_mutexes;
+    //std::vector<std::condition_variable> worker_task_cvs;
+    std::vector<std::unique_ptr<std::mutex>> worker_task_mutexes;
+    std::vector<std::unique_ptr<std::condition_variable>> worker_task_cvs;
+
+
     std::atomic<bool> is_running{ false };
+
 public:
     Server(boost::asio::io_context& io_context, unsigned short port)
         : io_context(io_context), port(port) {
     }
+
+    // 복사 생성자와 복사 대입 연산자를 삭제해 non-copyable로 만듦
+    Server(const Server&) = delete;
+    Server& operator=(const Server&) = delete;
 
     void initializeThreadPool();
 

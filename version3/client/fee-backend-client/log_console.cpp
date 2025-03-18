@@ -8,7 +8,7 @@
 #include <iostream>
 
 void log_process(HANDLE hPipe) {
-    while (true) {
+    //while (true) {
         std::string log_message =
             "echo Total: " + std::to_string(total_send_cnt.load()) +
             " / Success: " + std::to_string(total_send_success_cnt.load()) +
@@ -30,6 +30,6 @@ void log_process(HANDLE hPipe) {
         );
 
         std::this_thread::sleep_for(std::chrono::seconds(5));
-    }
+    //}
 	CloseHandle(hPipe);
 }

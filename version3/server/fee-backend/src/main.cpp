@@ -157,7 +157,7 @@ int main(void) {
         LOGE << "Server start";
         boost::asio::io_context io_context;
         Server chatServer(io_context, 7777);
-        Server consoleServer(io_context, 7778);
+        //Server consoleServer(io_context, 7778);
         // Memory pool 초기화
         g_memory_pool.init(10000);
         //plog 초기화
@@ -181,7 +181,7 @@ int main(void) {
         }
 
         // 서버 종료 처리
-        consoleServer.consoleStop();
+        //consoleServer.consoleStop();
         chatServer.chatStop();
 
         // 스레드 정리

@@ -32,7 +32,6 @@ private:
     
     std::mutex packet_mutex;
     std::mutex read_mutex;
-    std::mutex heap_mutex;
 
 public:
     Session(tcp::socket socket_, Server& server_)

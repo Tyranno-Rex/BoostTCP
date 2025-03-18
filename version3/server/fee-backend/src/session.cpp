@@ -141,7 +141,7 @@ void processPacketInWorker(int session_id, std::unique_ptr<std::vector<char>>& d
 			    return;
 		    }
             
-            if (g_packet_checker.is_in_order(session_id, seq)) {
+            if (!g_packet_checker.is_in_order(session_id, seq)) {
                 // 에러 카운트 진행
                 if (type == PacketType::JH) {
 					JY_recv_packet_fail_cnt++;
@@ -179,6 +179,7 @@ void processPacketInWorker(int session_id, std::unique_ptr<std::vector<char>>& d
             
 		    std::string message(packet.begin() + 25, packet.begin() + 25 + 128);
 		    std::string total_send_cnt = std::to_string(JH_recv_packet_total_cnt + YJ_recv_packet_total_cnt + ES_recv_packet_total_cnt);
+            //LOGD << message;
 
 		    if (type == PacketType::JH) {
 			    JY_recv_packet_success_cnt++;

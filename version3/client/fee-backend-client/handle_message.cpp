@@ -40,6 +40,8 @@ static inline void trim(std::string& s) {
 
 
 void write_messages(boost::asio::io_context& io_context, const std::string& host, const std::string& port) {
+    
+    /*
     // 사용자 명령 입력 쓰레드 시작
     //std::thread inputThread(input_thread);
 
@@ -82,6 +84,8 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
         logThread.detach();
 
     }
+
+    */
 
     try {
         while (is_running) {
@@ -159,6 +163,17 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                 system("clear");
 #endif
             }
+            else if (message == "/stats")
+            {
+                for (int i = 0; i < 5; ++i) {
+                    LOGD << "Total: " << total_send_cnt.load() << " / Success: " << total_send_success_cnt.load()
+                        << " / Fail: " << total_send_fail_cnt.load() << " / Success Rate: "
+                        << (total_send_cnt.load() > 0
+                            ? (double)total_send_success_cnt.load() / total_send_cnt.load() * 100
+                            : 0) << "%";
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                }
+            }
         }
     }
     catch (std::exception& e) {
@@ -166,7 +181,7 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
     }
 
     // 프로세스 정리
-        
+    /*
     if (pinfo.hProcess) {
         TerminateProcess(pinfo.hProcess, 0);
         CloseHandle(pinfo.hProcess);
@@ -174,4 +189,5 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
     }
     CloseHandle(hPipeIn_Read);
     CloseHandle(hPipeIn_Write);
+    */
 }
