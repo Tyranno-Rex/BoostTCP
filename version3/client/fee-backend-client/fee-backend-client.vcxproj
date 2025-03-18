@@ -107,6 +107,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>C:\library\boost_1_86_0;C:\Program Files\PostgreSQL\17\include;C:\library\DEV\vcpkg\installed\x64-windows\include;C:\Users\eunseong\library\boost_1_86_0;C:\Users\eunseong\library\vcpkg\installed\x64-windows\include;C:\Users\eunseong\library\boost_1_86_0\bin.v2;..\..\library\cryptopp;..\..\library\plog\include\;..\..\library\commoncpp\lib;..\..\library\</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

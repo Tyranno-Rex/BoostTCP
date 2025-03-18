@@ -12,26 +12,34 @@ private:
 
 public:
     bool is_in_order(int key, int seq) {
+        std::lock_guard<std::mutex> lock(mtx);
         auto it = last_seq.find(key);
         if (it == last_seq.end()) {
-            // 새로운 키를 추가할 때만 동기화 필요
-            std::lock_guard<std::mutex> lock(mtx);
             last_seq[key] = seq;
             return true;
         }
 
         int expected = it->second.load();
-        if (seq == expected + 1) {
+        if (seq > expected) {
             it->second.store(seq);
             return true;
         }
 
+        LOGE << "[SEQUENCE ERROR] [" << key << "] Expected: " << expected + 1 << ", but got : " << seq;
         return false;
     }
 
+
     void delete_key(int key) {
         std::lock_guard<std::mutex> lock(mtx);
-        last_seq.erase(key);
+        if (key % 1000 == 0 || key % 1000 == 500) {
+            size_t start = key - 1000;
+            size_t end = key - 500;
+            for (size_t i = start; i < end; i++) {
+				if (last_seq.find(i) != last_seq.end())
+                    last_seq.erase(i);
+            }
+        }
     }
 };
 

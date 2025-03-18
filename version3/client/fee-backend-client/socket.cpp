@@ -54,7 +54,6 @@ void handle_sockets(MemoryPool<Socket>& socket_pool, int connection_cnt, const s
         for (int i = 0; i < connection_cnt; ++i) {
             auto packet = create_packet(message);
 			packet.get()->header.seq = i;
-			LOGE << "header.seq: " << packet.get()->header.seq;
             send_buffer(socket->get_shared_socket(), packet);
         }
 		socket.get()->disconnect();
