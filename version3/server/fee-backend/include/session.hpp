@@ -60,4 +60,4 @@ private:
     bool handlePacket(size_t bytes_transferred);
 };
 
-void processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size);
+void processPacketInWorker(int session_id, std::unique_ptr<std::vector<char>>& data, size_t size);

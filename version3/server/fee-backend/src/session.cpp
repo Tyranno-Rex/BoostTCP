@@ -5,6 +5,7 @@
 #include <plog/Appenders/ConsoleAppender.h>
 
 extern MemoryPool g_memory_pool;
+extern PacketChecker g_packet_checker;
 
 extern std::atomic<int>
 JH_recv_packet_total_cnt;
@@ -52,6 +53,7 @@ void Session::doRead() {
                 LOGI << "Client disconnected";
                 g_memory_pool.release(current_buffer);
                 stop();
+				g_packet_checker.delete_key(SessionID);
                 server.removeClient(self);
             }
         });
@@ -108,8 +110,7 @@ void Session::stop() {
 	socket.close();
 }
 
-void processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size) {
-	LOGD << "Packet size: " << size;
+void processPacketInWorker(int session_id, std::unique_ptr<std::vector<char>>& data, size_t size) {
     const size_t PACKET_SIZE = 154;
 
     size_t processed = 0;
@@ -117,9 +118,13 @@ void processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size
     while (processed + PACKET_SIZE <= size) {
         try {
             std::vector<char> packet(data->begin() + processed, data->begin() + processed + PACKET_SIZE);
-
 		    // PacketHeader
 		    uint32_t seq = *reinterpret_cast<uint32_t*>(packet.data());
+
+            if (g_packet_checker.is_in_order(session_id, seq)) {
+				LOGE << "Out of order packet";
+            }
+
 		    PacketType type = static_cast<PacketType>(packet[4]);
 		    std::string checkSum(packet.begin() + 5, packet.begin() + 21);
 		    uint32_t packet_size = *reinterpret_cast<uint32_t*>(packet.data() + 21);

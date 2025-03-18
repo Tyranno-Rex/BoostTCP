@@ -41,7 +41,6 @@ using tcp = net::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 #define expected_checksum 0x04
 #define expected_size 0x08
 
-
 struct PacketTask {
     std::unique_ptr<std::vector<char>> data;
 	uint32_t session_id;

@@ -14,6 +14,7 @@
 
 std::atomic<bool> running(true);
 MemoryPool g_memory_pool;
+PacketChecker g_packet_checker;
 
 std::atomic<int> Session_Count = 0;
 

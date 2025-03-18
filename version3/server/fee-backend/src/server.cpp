@@ -33,8 +33,7 @@ void Server::initializeThreadPool() {
             while (is_running) {
                 PacketTask task;  
                 if (packet_queue.pop(task)) {
-					LOGD << "tasks sid: " << task.session_id << " seq: " << task.seq_num;
-					processPacketInWorker(task.data, task.size);
+					processPacketInWorker(task.session_id, task.data, task.size);
                 }
             }
             });
