@@ -53,7 +53,8 @@ public:
 	//void processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size);
 
     void handleReceivedData(size_t bytes_transferred); // 데이터 처리 함수 추가
-	void handleReceivedData(std::array<char, 154>& buffer, size_t bytes_transferred); // 데이터 처리 함수 추가
+	//void handleReceivedData(std::array<char, 154>& buffer, size_t bytes_transferred); // 데이터 처리 함수 추가 (이건 크기 사이즈 만큼만 가져 오는 함수)
+	//void doRead();
 private:
     std::vector<char> partial_packet_buffer; // 불완전 패킷 저장 버퍼 추가
     void doRead();

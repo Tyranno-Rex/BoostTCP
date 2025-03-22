@@ -23,10 +23,10 @@ std::shared_ptr<Packet> create_packet(const std::string& message) {
     packet->tail.value = 255;
 
     std::string msg = std::to_string(total_send_cnt) + " / " + message;
-    msg.resize(std::min(msg.size(), size_t(128)), ' ');
+    msg.resize(std::min(msg.size(), size_t(127)), ' ');
 
     std::memset(packet->payload, 0, sizeof(packet->payload));
-    std::memcpy(packet->payload, msg.c_str(), std::min(msg.size(), size_t(128)));
+    std::memcpy(packet->payload, msg.c_str(), std::min(msg.size(), size_t(127)));
     packet->header.size = static_cast<uint32_t>(sizeof(Packet));
 
     auto checksum = calculate_checksum(std::vector<char>(msg.begin(), msg.end()));
@@ -47,12 +47,12 @@ void send_buffer(std::shared_ptr<tcp::socket> socket, std::shared_ptr<Packet> pa
 
 void handle_sockets(MemoryPool<Socket>& socket_pool, int connection_cnt, const std::string& message, int thread_num) {
     try {
+        auto packet = create_packet(message);
         auto socket = socket_pool.acquire();
 		socket.get()->connect();
 
 
         for (int i = 0; i < connection_cnt; ++i) {
-            auto packet = create_packet(message);
 			packet.get()->header.seq = i;
             send_buffer(socket->get_shared_socket(), packet);
         }

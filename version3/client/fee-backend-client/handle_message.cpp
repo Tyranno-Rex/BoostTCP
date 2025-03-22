@@ -40,48 +40,6 @@ static inline void trim(std::string& s) {
 
 
 void write_messages(boost::asio::io_context& io_context, const std::string& host, const std::string& port) {
-    // 사용자 명령 입력 쓰레드 시작
-    //std::thread inputThread(input_thread);
-
-    // 로그 프로세스(별도 콘솔) 생성
-	// security 속성을 설정하지 않으면 콘솔이 생성되지 않음
-    SECURITY_ATTRIBUTES security = {};
-	// nLength는 구조체의 크기, bInheritHandle은 자식 프로세스에 상속할지 여부
-    security.nLength = sizeof(SECURITY_ATTRIBUTES);
-    security.bInheritHandle = TRUE;
-
-	// 파이프 생성
-    HANDLE hPipeIn_Read = nullptr, hPipeIn_Write = nullptr;
-	// CreatePipe 함수는 파이프를 생성하고 핸들을 반환 -> 파이프의 역할: 프로세스 간 통신
-	// CreatePipe(파이프핸들, 파이프핸들, 보안속성, 버퍼크기)
-    CreatePipe(&hPipeIn_Read, &hPipeIn_Write, &security, 0);
-
-	// 프로세스 시작 정보 설정
-    STARTUPINFO sinfo = {};
-	// cb는 구조체의 크기, hStdInput은 표준 입력 핸들, dwFlags는 플래그
-    sinfo.cb = sizeof(STARTUPINFO);
-    sinfo.hStdInput = hPipeIn_Read;
-    sinfo.dwFlags = STARTF_USESTDHANDLES;
-
-	// 프로세스 정보 설정
-    PROCESS_INFORMATION pinfo = {};
-	// lpCommandLine은 실행할 프로그램의 경로
-    TCHAR lpCommandLine[] = TEXT("cmd.exe");
-
-
-	// CreateProcess(모튤이름, 명령라인, 보안속성, 보안속성, 상속여부, 
-    //              플래그, 환경변수, 현재디렉토리, 시작정보, 프로세스정보)
-    if (!CreateProcess( NULL, lpCommandLine, NULL, NULL, TRUE,
-                        CREATE_NEW_CONSOLE, NULL, NULL, &sinfo, &pinfo ))
-    {
-        std::cerr << "Log process creation failed. Error: " << GetLastError() << std::endl;
-    }
-    else {
-        // 로그 출력 쓰레드
-        std::thread logThread(log_process, hPipeIn_Write);
-        logThread.detach();
-
-    }
 
     try {
         while (is_running) {
@@ -94,6 +52,42 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
             
 			trim(message);
 			std::cout << "Received command: " << message << std::endl;
+
+			// 특정 개수만큼만 메시지 전송
+            if (message.rfind("/send", 0) == 0) {
+                std::istringstream iss(message.substr(6));
+                int send_cnt, thread_cnt;
+				if (!(iss >> send_cnt >> thread_cnt) || send_cnt <= 0 || thread_cnt <= 0) {
+                    continue;
+                }
+
+                std::string msg =
+                    "You can't let your failures define you. "
+                    "You have to let your failures teach you. "
+                    "You have to let them show you what to do differently the next time.";
+
+                int socket_cnt = 10000;
+
+                MemoryPool<Socket> socket_pool(socket_cnt,
+                    [&io_context, &host, &port]() {
+                        return std::make_shared<Socket>(io_context, host, port);
+                    }
+                );
+                boost::asio::thread_pool pool(thread_cnt);
+
+                int send_cnt_per_thread = send_cnt / thread_cnt;
+
+				LOGI << "send_cnt: " << send_cnt << " / thread_cnt: " << thread_cnt << " / send_cnt_per_thread: " << send_cnt_per_thread;
+				LOGI << "thread_cnt * send_cnt_per_thread: " << thread_cnt * send_cnt_per_thread;
+
+                for (int i = 0; i < thread_cnt; ++i) {
+					LOGI << "Thread " << i << " started";
+                    boost::asio::post(pool, [send_cnt_per_thread, msg, &socket_pool, i]() {
+                        handle_sockets(socket_pool, send_cnt_per_thread, msg, i);
+                        });
+                }
+            }
+			
 
             if (message.rfind("/debug", 0) == 0) {
                 std::istringstream iss(message.substr(7));
@@ -113,7 +107,7 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                             std::this_thread::sleep_for(std::chrono::seconds(5));
                         }
                         try {
-                            int socket_cnt = 1000;
+                            int socket_cnt = 10000;
                             
                             MemoryPool<Socket> socket_pool(socket_cnt,
                                 [&io_context, &host, &port]() {
@@ -127,7 +121,6 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                                         handle_sockets(socket_pool, connection_cnt, msg, i);
                                         });
                                 }
-								std::this_thread::sleep_for(std::chrono::milliseconds(100));
                                 pool.join();
                             }
                             socket_pool.close();
@@ -159,19 +152,20 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                 system("clear");
 #endif
             }
+            else if (message == "/stats")
+            {
+                for (int i = 0; i < 5; ++i) {
+                    LOGD << "Total: " << total_send_cnt.load() << " / Success: " << total_send_success_cnt.load()
+                        << " / Fail: " << total_send_fail_cnt.load() << " / Success Rate: "
+                        << (total_send_cnt.load() > 0
+                            ? (double)total_send_success_cnt.load() / total_send_cnt.load() * 100
+                            : 0) << "%";
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                }
+            }
         }
     }
     catch (std::exception& e) {
         std::cerr << "Exception in write thread: " << e.what() << std::endl;
     }
-
-    // 프로세스 정리
-        
-    if (pinfo.hProcess) {
-        TerminateProcess(pinfo.hProcess, 0);
-        CloseHandle(pinfo.hProcess);
-        CloseHandle(pinfo.hThread);
-    }
-    CloseHandle(hPipeIn_Read);
-    CloseHandle(hPipeIn_Write);
 }
