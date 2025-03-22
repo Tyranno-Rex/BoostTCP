@@ -4,7 +4,7 @@
 #include <plog/Log.h>
 #include <plog/Appenders/ConsoleAppender.h>
 
-extern MemoryPool<char[1540]> g_memory_pool;
+extern MemoryPool<std::array<char[1540], 100000>> g_memory_pool;
 extern PacketChecker g_packet_checker;
 
 extern std::atomic<int>
