@@ -22,27 +22,9 @@ extern std::atomic<int> ES_recv_packet_total_cnt;
 extern std::atomic<int> ES_recv_packet_success_cnt;
 extern std::atomic<int> ES_recv_packet_fail_cnt;
 
-//void Server::initializeThreadPool() {
-//    is_running = true;
-//    size_t thread_count = std::thread::hardware_concurrency() / 2;
-//	std::cout << "Thread count: " << thread_count << std::endl;
-//
-//    for (size_t i = 0; i < thread_count; ++i) {
-//        worker_threads.emplace_back([this]() {
-//            LOGI << "Worker thread started";
-//            while (is_running) {
-//                PacketTask task;  
-//                if (packet_queue.pop(task)) {
-//					processPacketInWorker(task.session_id, task.data, task.size);
-//                }
-//            }
-//            });
-//    }
-//}
-
 void Server::initializeThreadPool() {
     is_running = true;
-    size_t thread_count = std::thread::hardware_concurrency() / 2;
+    size_t thread_count = std::thread::hardware_concurrency();
     std::cout << "Thread count: " << thread_count << std::endl;
 
     // worker 전용 PacketQueue를 thread_count 크기로 초기화 (default constructor가 호출됨)
@@ -111,7 +93,7 @@ void Server::doAccept(tcp::acceptor& acceptor) {
                     std::lock_guard<std::mutex> lock(clients_mutex);
 					Session_Count++;
 					session.get()->setSessionID(Session_Count);
-					LOGI << "New client connected";
+					//LOGI << "New client connected";
                     clients.push_back(session);
                 }
                 session->start();

@@ -178,8 +178,6 @@ class Server {
 
     // 각 worker마다 전용 task queue, mutex, condition_variable 생성
 	std::vector<PacketQueue> worker_task_queues;
-    //std::vector<std::mutex> worker_task_mutexes;
-    //std::vector<std::condition_variable> worker_task_cvs;
     std::vector<std::unique_ptr<std::mutex>> worker_task_mutexes;
     std::vector<std::unique_ptr<std::condition_variable>> worker_task_cvs;
 
