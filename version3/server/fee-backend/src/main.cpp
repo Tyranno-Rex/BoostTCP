@@ -14,7 +14,7 @@
 
 std::atomic<bool> running(true);
 //MemoryPool g_memory_pool;
-MemoryPool<char[1540]> g_memory_pool;
+MemoryPool<std::array<char[1540], 100000>> g_memory_pool;
 
 PacketChecker g_packet_checker;
 
@@ -162,7 +162,7 @@ int main(void) {
         //Server consoleServer(io_context, 7778);
         
         // Memory pool 초기화
-		g_memory_pool.init(10000);
+		//g_memory_pool.init(10000);
 
         //plog 초기화
         static plog::ColorConsoleAppender<plog::TxtFormatter> consoleAppender;
