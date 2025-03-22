@@ -14,7 +14,7 @@
 
 std::atomic<bool> running(true);
 //MemoryPool g_memory_pool;
-MemoryPool<std::array<char[1540], 100000>> g_memory_pool;
+MemoryPool<std::array<char, 1540>> g_memory_pool;
 
 PacketChecker g_packet_checker;
 
