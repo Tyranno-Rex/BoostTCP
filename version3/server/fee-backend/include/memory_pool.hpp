@@ -104,11 +104,22 @@ public:
 
     std::shared_ptr<T> acquire() {
         std::lock_guard<std::mutex> lock(pool_mutex_);
+		
+		// pool을 순회하면서 T의 상태값이 false인 객체를 반환
+		for (auto& obj : pool_) {
+			if (obj->isActive() == false) {
+				return obj;
+			}
+		}
+
         if (pool_.empty()) {
             //return factory_();
+			// 만약 pool이 비어있으면 새로운 객체를 생성
 			pool_.emplace_back(factory_());
         }
+		//obj->setActive(true);
         auto obj = pool_.back();
+		obj->setActive(true);
         pool_.pop_back();
         return obj;
     }

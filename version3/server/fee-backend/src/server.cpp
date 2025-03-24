@@ -125,7 +125,7 @@ void processPacketInWorker(PacketTask &task) {
 
 void Server::initializeThreadPool() {
     is_running = true;
-    size_t thread_count = std::thread::hardware_concurrency() / 2;
+    size_t thread_count = std::thread::hardware_concurrency();
     std::cout << "Thread count: " << thread_count << std::endl;
 
     // worker 전용 PacketQueue를 thread_count 크기로 초기화 (default constructor가 호출됨)
@@ -161,20 +161,33 @@ void Server::initializeThreadPool() {
 			std::this_thread::sleep_for(std::chrono::seconds(10));
 
 			std::lock_guard<std::mutex> lock(clients_mutex);
-			clients.erase(std::remove_if(clients.begin(), clients.end(),
-				[](const std::shared_ptr<Session>& session) {
-					if (!session->getConnected()) {
-						auto now = std::chrono::system_clock::now();
-						auto last_connect_time = session->getLastConnectTime();
-						auto last_connect_time_t = std::chrono::system_clock::from_time_t(std::stoi(last_connect_time));
-						auto diff = std::chrono::duration_cast<std::chrono::seconds>(now - last_connect_time_t).count();
-						if (diff > CLIENT_CONNECTION_MAINTENANCE_INTERVAL) {
-							session->stop();
-							return true;
-						}
+			//clients.erase(std::remove_if(clients.begin(), clients.end(),
+			//	[](const std::shared_ptr<Session>& session) {
+			//		if (!session->isActive()) {
+			//			auto now = std::chrono::system_clock::now();
+			//			auto last_connect_time = session->getLastConnectTime();
+			//			auto last_connect_time_t = std::chrono::system_clock::from_time_t(std::stoi(last_connect_time));
+			//			auto diff = std::chrono::duration_cast<std::chrono::seconds>(now - last_connect_time_t).count();
+			//			if (diff > CLIENT_CONNECTION_MAINTENANCE_INTERVAL) {
+			//				session->stop();
+			//				return true;
+			//			}
+			//		}
+			//		return false;
+			//	}), clients.end());
+
+			// 삭제하는 것이 아닌 상태값을 변경
+			for (auto& session : clients) {
+				if (!session->isActive()) {
+					auto now = std::chrono::system_clock::now();
+					auto last_connect_time = session->getLastConnectTime();
+					auto last_connect_time_t = std::chrono::system_clock::from_time_t(std::stoi(last_connect_time));
+					auto diff = std::chrono::duration_cast<std::chrono::seconds>(now - last_connect_time_t).count();
+					if (diff > CLIENT_CONNECTION_MAINTENANCE_INTERVAL) {
+						session->doReset();
 					}
-					return false;
-				}), clients.end());
+				}
+			}
 		}
 		});
 
@@ -213,6 +226,7 @@ void Server::doAccept(tcp::acceptor& acceptor) {
 		[this, &acceptor](const boost::system::error_code& error, tcp::socket socket) {
             if (!error) {
                 std::shared_ptr<Session> session = this->session_pool.acquire();
+				session.get()->setActive(true);
 				session.get()->initialize(std::move(socket), *this);
                 {
                     std::lock_guard<std::mutex> lock(clients_mutex);

@@ -32,6 +32,7 @@ private:
 	int SessionID;
 	std::atomic<int> max_seq = 0;
 	bool is_connected = true;
+	bool is_active = false;
 	std::string last_connect_time = "";
     
     std::array<char, 1540> current_buffer;   // 현재 읽기용 버퍼
@@ -43,15 +44,6 @@ private:
     std::mutex read_mutex;
 
 public:
-    //Session(boost::asio::io_context& io_context)
-    //    : socket(io_context), server(nullptr) {
-    //}
-
-    //Session(tcp::socket socket_, Server& server_)
-    //    : socket(std::move(socket_))
-    //    , server(&server_) {
-    //}
-
     Session(boost::asio::io_context& io_context, Server& server)
         : socket(io_context), server(&server) {
     };
@@ -66,12 +58,8 @@ public:
 	void stop();
 	void setSessionID(int id) { SessionID = id; }
 	int getSessionID() { return SessionID; }
-	//void processPacketInWorker(std::unique_ptr<std::vector<char>>& data, size_t size);
 
     void handleReceivedData(size_t bytes_transferred); // 데이터 처리 함수 추가
-	//void handleReceivedData(std::array<char, 154>& buffer, size_t bytes_transferred); // 데이터 처리 함수 추가 (이건 크기 사이즈 만큼만 가져 오는 함수)
-	//void doRead();
-
     void initialize(tcp::socket socket_, Server& server_) {
 		socket = std::move(socket_);
 		server = &server_;
@@ -81,12 +69,25 @@ public:
     
     void setMaxSeq(int seq) { max_seq = seq; }
 
-	bool getConnected() { return is_connected; }
-	void setConnected(bool connected) { is_connected = connected; }
+	//bool getConnected() { return is_connected; }
+	//void setConnected(bool connected) { is_connected = connected; }
+
+	bool isActive() { return is_active; }
+	void setActive(bool active) { is_active = active; }
 
 	std::string getLastConnectTime() { return last_connect_time; }
 	void setLastConnectTime(std::string time) { last_connect_time = time; }
 
+	void doReset() {
+		SessionID = 0;
+		max_seq = 0;
+		//is_connected = true;
+		is_active = false;
+		last_connect_time = "";
+
+		memset(packet_buffer.data(), 0, packet_buffer.size());
+		memset(current_buffer.data(), 0, current_buffer.size());
+	}
 
 private:
     std::vector<char> partial_packet_buffer; // 불완전 패킷 저장 버퍼 추가

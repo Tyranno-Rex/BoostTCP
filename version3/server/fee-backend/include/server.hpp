@@ -24,7 +24,7 @@
 #include "memory_pool.hpp"
 #include "session.hpp"
 
-#define CLIENT_CONNECTION_MAINTENANCE_INTERVAL 30
+#define CLIENT_CONNECTION_MAINTENANCE_INTERVAL 60
 
 // Session 전방 선언
 class Session;
@@ -52,24 +52,14 @@ private:
     std::vector<std::shared_ptr<Session>> clients;
     std::mutex clients_mutex;
     MemoryPool_2<Session> session_pool;
-	std::unordered_map<uint32_t, std::shared_ptr<Session>> session_map;
 
     std::vector<std::thread> worker_threads;
 	std::thread pop_thread;
 	std::thread client_check_thread;
 
-
     PacketQueue packet_queue;
 
- //   // 각 worker마다 전용 task queue, mutex, condition_variable 생성
 	std::vector<PacketQueue> worker_task_queues;
-
- //   //std::vector<std::mutex> worker_task_mutexes;
- //   //std::vector<std::condition_variable> worker_task_cvs;
- //   std::vector<std::unique_ptr<std::mutex>> worker_task_mutexes;
- //   std::vector<std::unique_ptr<std::condition_variable>> worker_task_cvs;
-
-
     std::atomic<bool> is_running{ false };
 
 public:
