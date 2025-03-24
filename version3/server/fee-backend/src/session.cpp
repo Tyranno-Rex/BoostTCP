@@ -31,7 +31,6 @@ extern std::atomic<int>
 const size_t PACKET_SIZE = 154; // 패킷 크기
 
 void Session::doRead() {
-
     // shared_from_this()를 사용하여 자기 자신을 참조하고 있는 shared_ptr을 생성
     auto self = shared_from_this();
     // 메모리 풀에서 버퍼를 할당받아서 읽기 작업을 수행
@@ -53,6 +52,12 @@ void Session::doRead() {
                 g_memory_pool.release(current_buffer);
                 stop();
 				g_packet_checker.delete_key(SessionID);
+				this->setConnected(false);
+
+                auto now = std::chrono::system_clock::now();
+				auto now_t = std::chrono::system_clock::to_time_t(now);
+				std::string buf = std::to_string(now_t);
+				this->setLastConnectTime(buf);
                 //server.removeClient(self);
             }
         });

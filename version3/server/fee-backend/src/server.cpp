@@ -23,24 +23,6 @@ extern std::atomic<int> ES_recv_packet_success_cnt;
 extern std::atomic<int> ES_recv_packet_fail_cnt;
 
 
-//void Server::initializeThreadPool() {
-//    is_running = true;
-//    size_t thread_count = std::thread::hardware_concurrency() / 2;
-//	std::cout << "Thread count: " << thread_count << std::endl;
-//
-//    for (size_t i = 0; i < thread_count; ++i) {
-//        worker_threads.emplace_back([this]() {
-//            LOGI << "Worker thread started";
-//            while (is_running) {
-//                PacketTask task;  
-//                if (packet_queue.pop(task)) {
-//					processPacketInWorker(task.session_id, task.data, task.size);
-//                }
-//            }
-//            });
-//    }
-//}
-
 void processPacketInWorker(PacketTask &task) {
 	const size_t PACKET_SIZE = 154;
 	auto data = std::move(task.data);
@@ -141,7 +123,6 @@ void processPacketInWorker(PacketTask &task) {
 	}
 }
 
-
 void Server::initializeThreadPool() {
     is_running = true;
     size_t thread_count = std::thread::hardware_concurrency() / 2;
@@ -174,8 +155,39 @@ void Server::initializeThreadPool() {
             // 필요에 따라 짧은 대기 시간을 넣어 busy-waiting 완화 가능
         }
         });
-}
 
+	// client 중에 status가 false이고, 마지막 접속시간이 1분 이상 지난 경우 삭제
+	client_check_thread = std::thread([this]() {
+		while (is_running) {
+			std::this_thread::sleep_for(std::chrono::seconds(10));
+			//LOGD << "Client check thread";
+			std::lock_guard<std::mutex> lock(clients_mutex);
+			auto it = clients.begin();
+			if (it == clients.end()) {
+				continue;
+			}
+
+			int count = 0;
+			while (it != clients.end()) {
+				if (!(*it)->getConnected()) {
+					auto now = std::chrono::system_clock::now();
+					auto last_connect_time = (*it)->getLastConnectTime();
+					auto last_connect_time_t = std::chrono::system_clock::from_time_t(std::stoi(last_connect_time));
+					auto diff = std::chrono::duration_cast<std::chrono::seconds>(now - last_connect_time_t).count();
+					if (diff > CLIENT_CONNECTION_MAINTENANCE_INTERVAL) {
+						//LOGD << "Client disconnected: " << (*it)->getSessionID();
+						(*it)->stop();
+						it = clients.erase(it);
+						count++;
+						continue;
+					}
+				}
+				++it;
+			}
+			//LOGD << "Client deleted: " << count;
+		}
+		});
+}
 
 void Server::chatRun() {
     try {

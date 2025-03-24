@@ -11,6 +11,7 @@
 #include <queue>
 #include <zlib.h>
 #include <mutex>
+#include <ctime>
 #include "server.hpp"
 
 namespace beast = boost::beast; // from <boost/beast.hpp>
@@ -30,6 +31,8 @@ private:
 	Server* server;
 	int SessionID;
 	std::atomic<int> max_seq = 0;
+	bool is_connected = true;
+	std::string last_connect_time = "";
     
     std::array<char, 1540> current_buffer;   // 현재 읽기용 버퍼
     std::array<char, 154> packet_buffer;    // 패킷 조립용 버퍼
@@ -77,6 +80,13 @@ public:
 	int getMaxSeq() { return max_seq; }
     
     void setMaxSeq(int seq) { max_seq = seq; }
+
+	bool getConnected() { return is_connected; }
+	void setConnected(bool connected) { is_connected = connected; }
+
+	std::string getLastConnectTime() { return last_connect_time; }
+	void setLastConnectTime(std::string time) { last_connect_time = time; }
+
 
 private:
     std::vector<char> partial_packet_buffer; // 불완전 패킷 저장 버퍼 추가

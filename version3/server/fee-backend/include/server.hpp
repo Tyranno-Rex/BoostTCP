@@ -24,6 +24,8 @@
 #include "memory_pool.hpp"
 #include "session.hpp"
 
+#define CLIENT_CONNECTION_MAINTENANCE_INTERVAL 30
+
 // Session 전방 선언
 class Session;
 
@@ -53,28 +55,6 @@ struct PacketTask {
     size_t size;
 
 	PacketTask() = default;
-
-	//PacketTask(std::unique_ptr<std::vector<char>>&& buffer, size_t s, uint32_t session_id, uint32_t sequence)
-	//	: data(std::move(buffer))
-	//	, size(s)
-	//	, session_id(session_id)
-	//	, seq_num(sequence) {
-	//}
-    
-    //PacketTask(PacketTask&& other) noexcept
-    //    : data(std::move(other.data)), size(other.size),
-    //    session_id(other.session_id), seq_num(other.seq_num) {
-    //}
-
-    //PacketTask& operator=(PacketTask&& other) noexcept {
-    //    if (this != &other) {
-    //        data = std::move(other.data);
-    //        size = other.size;
-    //        session_id = other.session_id;  // 추가
-    //        seq_num = other.seq_num;        // 추가
-    //    }
-    //    return *this;
-    //}
 
 	PacketTask(std::unique_ptr<std::vector<char>>&& buffer, size_t s, uint32_t session_id, Session* session)
 		: data(std::move(buffer))
@@ -189,16 +169,18 @@ private:
 
     std::vector<std::thread> worker_threads;
 	std::thread pop_thread;
+	std::thread client_check_thread;
 
 
     PacketQueue packet_queue;
 
-    // 각 worker마다 전용 task queue, mutex, condition_variable 생성
+ //   // 각 worker마다 전용 task queue, mutex, condition_variable 생성
 	std::vector<PacketQueue> worker_task_queues;
-    //std::vector<std::mutex> worker_task_mutexes;
-    //std::vector<std::condition_variable> worker_task_cvs;
-    std::vector<std::unique_ptr<std::mutex>> worker_task_mutexes;
-    std::vector<std::unique_ptr<std::condition_variable>> worker_task_cvs;
+
+ //   //std::vector<std::mutex> worker_task_mutexes;
+ //   //std::vector<std::condition_variable> worker_task_cvs;
+ //   std::vector<std::unique_ptr<std::mutex>> worker_task_mutexes;
+ //   std::vector<std::unique_ptr<std::condition_variable>> worker_task_cvs;
 
 
     std::atomic<bool> is_running{ false };
