@@ -5,7 +5,6 @@
 #include <plog/Appenders/ConsoleAppender.h>
 
 extern MemoryPool g_memory_pool;
-extern PacketChecker g_packet_checker;
 
 extern std::atomic<int>
 JH_recv_packet_total_cnt;
@@ -51,7 +50,6 @@ void Session::doRead() {
                 LOGI << "Client disconnected";
                 g_memory_pool.release(current_buffer);
                 stop();
-				g_packet_checker.delete_key(SessionID);
 				this->setConnected(false);
 
                 auto now = std::chrono::system_clock::now();
