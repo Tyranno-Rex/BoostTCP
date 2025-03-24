@@ -55,10 +55,15 @@ int main(int argc, char* argv[]) {
         boost::asio::io_context io_context;
         static plog::ColorConsoleAppender<plog::TxtFormatter> consoleAppender;
         plog::init(plog::verbose, &consoleAppender);
+		
+        // 콘솔 입력 스레드 시작
         std::thread inputConsoleThread(run_input_process_in_new_console);
+        
         // 멀티스레드로 io_context 실행
         std::vector<std::thread> io_threads;
         size_t thread_count = std::thread::hardware_concurrency() * 0.5;
+        
+		// io_context 스레드 생성
         for (size_t i = 0; i < thread_count; ++i) {
             io_threads.emplace_back([&io_context]() {
                 while (is_running) {
@@ -66,7 +71,6 @@ int main(int argc, char* argv[]) {
                 }
                 });
         }
-
 
         write_messages(io_context, host, chat_port);
 

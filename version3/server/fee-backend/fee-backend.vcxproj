@@ -24,6 +24,7 @@
     <ProjectGuid>{302b3f67-99ea-4a55-afa9-d62fcfbcbcd7}</ProjectGuid>
     <RootNamespace>feebackend</RootNamespace>
     <ProjectName>boostChat-server</ProjectName>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -122,7 +123,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\library\boost_1_86_0;C:\Program Files\PostgreSQL\17\include;C:\library\DEV\vcpkg\installed\x64-windows\include</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

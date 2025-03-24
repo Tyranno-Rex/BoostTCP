@@ -156,37 +156,28 @@ void Server::initializeThreadPool() {
         }
         });
 
-	// client 중에 status가 false이고, 마지막 접속시간이 1분 이상 지난 경우 삭제
 	client_check_thread = std::thread([this]() {
 		while (is_running) {
 			std::this_thread::sleep_for(std::chrono::seconds(10));
-			//LOGD << "Client check thread";
-			std::lock_guard<std::mutex> lock(clients_mutex);
-			auto it = clients.begin();
-			if (it == clients.end()) {
-				continue;
-			}
 
-			int count = 0;
-			while (it != clients.end()) {
-				if (!(*it)->getConnected()) {
-					auto now = std::chrono::system_clock::now();
-					auto last_connect_time = (*it)->getLastConnectTime();
-					auto last_connect_time_t = std::chrono::system_clock::from_time_t(std::stoi(last_connect_time));
-					auto diff = std::chrono::duration_cast<std::chrono::seconds>(now - last_connect_time_t).count();
-					if (diff > CLIENT_CONNECTION_MAINTENANCE_INTERVAL) {
-						//LOGD << "Client disconnected: " << (*it)->getSessionID();
-						(*it)->stop();
-						it = clients.erase(it);
-						count++;
-						continue;
+			std::lock_guard<std::mutex> lock(clients_mutex);
+			clients.erase(std::remove_if(clients.begin(), clients.end(),
+				[](const std::shared_ptr<Session>& session) {
+					if (!session->getConnected()) {
+						auto now = std::chrono::system_clock::now();
+						auto last_connect_time = session->getLastConnectTime();
+						auto last_connect_time_t = std::chrono::system_clock::from_time_t(std::stoi(last_connect_time));
+						auto diff = std::chrono::duration_cast<std::chrono::seconds>(now - last_connect_time_t).count();
+						if (diff > CLIENT_CONNECTION_MAINTENANCE_INTERVAL) {
+							session->stop();
+							return true;
+						}
 					}
-				}
-				++it;
-			}
-			//LOGD << "Client deleted: " << count;
+					return false;
+				}), clients.end());
 		}
 		});
+
 }
 
 void Server::chatRun() {
