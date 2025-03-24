@@ -14,7 +14,8 @@
 
 std::atomic<bool> running(true);
 //MemoryPool g_memory_pool;
-MemoryPool<std::array<char, 1540>> g_memory_pool;
+//MemoryPool<std::array<char, 1540>> g_memory_pool(10000);
+MemoryPool<std::array<char, 1540>> g_memory_pool(10000, []() { return std::make_shared<std::array<char, 1540>>(); });
 
 PacketChecker g_packet_checker;
 

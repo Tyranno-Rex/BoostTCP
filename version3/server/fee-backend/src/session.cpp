@@ -38,7 +38,7 @@ void Session::doRead() {
     current_buffer = g_memory_pool.acquire();
     // 비동기 읽기 작업을 수행
     socket.async_read_some(
-        boost::asio::buffer(current_buffer),
+        boost::asio::buffer(*current_buffer),
         // 비동기 작업 완료 시 호출되는 콜백 함수
         [this, self](const boost::system::error_code& error, size_t bytes_transferred) {
             if (!error) {
@@ -65,8 +65,8 @@ void Session::handleReceivedData(size_t bytes_transferred) {
     std::lock_guard<std::mutex> lock(read_mutex);
 
     // 새로 받은, 데이터를 임시 버퍼에 복사
-    std::vector<char> temp_buffer(current_buffer.begin(),
-        current_buffer.begin() + bytes_transferred);
+    std::vector<char> temp_buffer(*current_buffer->begin(),
+        *current_buffer->begin() + bytes_transferred);
 
     // 이전에 저장된 불완전 패킷이 있으면 현재 받은 데이터와 합침
     if (!partial_packet_buffer.empty()) {

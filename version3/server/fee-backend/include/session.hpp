@@ -25,8 +25,8 @@ private:
     Server& server;
 	int SessionID;
     
-    std::array<char, 1540> current_buffer;   // 현재 읽기용 버퍼
-	//char current_buffer[1540];  // 현재 읽기용 버퍼
+    //std::array<char, 1540> current_buffer;   // 현재 읽기용 버퍼
+	std::shared_ptr<std::array<char, 1540>> current_buffer;   // 현재 읽기용 버퍼
     std::array<char, 154> packet_buffer;    // 패킷 조립용 버퍼
     
     size_t packet_buffer_offset = 0;        // 패킷 버퍼의 현재 위치
