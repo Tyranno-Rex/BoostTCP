@@ -53,7 +53,7 @@ void Session::doRead() {
                 g_memory_pool.release(current_buffer);
                 stop();
 				g_packet_checker.delete_key(SessionID);
-                server.removeClient(self);
+                //server.removeClient(self);
             }
         });
 }
@@ -91,7 +91,7 @@ void Session::handleReceivedData(size_t bytes_transferred) {
         uint32_t received_seqnum = 0;
         std::memcpy(&received_seqnum, packet.get()->data(), sizeof(uint32_t));
 		PacketTask task(std::move(packet), PACKET_SIZE, SessionID, received_seqnum);
-		server.getPacketQueue().push(std::move(task));
+		server->getPacketQueue().push(std::move(task));
         processed += PACKET_SIZE;
     }
 

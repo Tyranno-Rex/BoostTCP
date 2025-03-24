@@ -21,6 +21,8 @@
 #include <plog/Appenders/DebugOutputAppender.h>
 
 #include "packet.hpp"
+#include "memory_pool.hpp"
+#include "session.hpp"
 
 // Session 전방 선언
 class Session;
@@ -164,11 +166,12 @@ public:
 };
 
 class Server {
-    private:
+private:
     boost::asio::io_context& io_context;
     unsigned short port;
     std::vector<std::shared_ptr<Session>> clients;
     std::mutex clients_mutex;
+    MemoryPool_2<Session> session_pool;
 
     std::vector<std::thread> worker_threads;
 	std::thread pop_thread;
@@ -188,7 +191,9 @@ class Server {
 
 public:
     Server(boost::asio::io_context& io_context, unsigned short port)
-        : io_context(io_context), port(port) {
+        : io_context(io_context), port(port),
+        session_pool(1000, [this, &io_context]() { return std::make_shared<Session>(io_context, *this); }) 
+    {
     }
 
     // 복사 생성자와 복사 대입 연산자를 삭제해 non-copyable로 만듦
@@ -215,6 +220,7 @@ public:
 
     void chatRun();
     void doAccept(tcp::acceptor& acceptor);
+	//void doAccept(tcp::acceptor& acceptor, MemoryPool_2<Session>& session_pool);
     void removeClient(std::shared_ptr<Session> client);
     void consoleStop();
     void chatStop();

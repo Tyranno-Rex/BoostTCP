@@ -22,6 +22,7 @@ extern std::atomic<int> ES_recv_packet_total_cnt;
 extern std::atomic<int> ES_recv_packet_success_cnt;
 extern std::atomic<int> ES_recv_packet_fail_cnt;
 
+
 //void Server::initializeThreadPool() {
 //    is_running = true;
 //    size_t thread_count = std::thread::hardware_concurrency() / 2;
@@ -79,7 +80,9 @@ void Server::chatRun() {
     try {
         initializeThreadPool();
         tcp::acceptor acceptor(io_context, tcp::endpoint(tcp::v4(), port));
-        doAccept(acceptor);
+
+		//MemoryPool_2<Session> session_pool(1000, []() { return std::make_shared<Session>(); });
+		doAccept(acceptor);
         // io_context를 여러 스레드에서 실행
         std::vector<std::thread> io_threads;
         size_t thread_count = std::thread::hardware_concurrency() / 2;
@@ -104,9 +107,12 @@ void Server::chatRun() {
 
 void Server::doAccept(tcp::acceptor& acceptor) {
     acceptor.async_accept(
-        [this, &acceptor](const boost::system::error_code& error, tcp::socket socket) {
+		[this, &acceptor](const boost::system::error_code& error, tcp::socket socket) {
             if (!error) {
-				auto session = std::make_shared<Session>(std::move(socket), *this);
+				//auto session = std::make_shared<Session>(std::move(socket), *this);
+
+                std::shared_ptr<Session> session = this->session_pool.acquire();
+				session.get()->initialize(std::move(socket), *this);
                 {
                     std::lock_guard<std::mutex> lock(clients_mutex);
 					Session_Count++;
@@ -114,9 +120,10 @@ void Server::doAccept(tcp::acceptor& acceptor) {
 					LOGI << "New client connected";
                     clients.push_back(session);
                 }
-                session->start();
+                //session->start();
+				session.get()->start();
             }
-            doAccept(acceptor); // 다음 연결 대기
+			doAccept(acceptor);
         });
 }
 
@@ -133,7 +140,8 @@ void Server::consoleStop() {
 
 void Server::chatStop() {
 	for (auto& client : clients) {
-		client->stop();
+		//client->stop();
+		client.get()->stop();
 	}
     
 	io_context.stop();
