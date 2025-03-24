@@ -29,6 +29,7 @@ private:
     //Server& server;
 	Server* server;
 	int SessionID;
+	std::atomic<int> max_seq = 0;
     
     std::array<char, 1540> current_buffer;   // 현재 읽기용 버퍼
     std::array<char, 154> packet_buffer;    // 패킷 조립용 버퍼
@@ -73,10 +74,14 @@ public:
 		server = &server_;
     }
 
+	int getMaxSeq() { return max_seq; }
+    
+    void setMaxSeq(int seq) { max_seq = seq; }
+
 private:
     std::vector<char> partial_packet_buffer; // 불완전 패킷 저장 버퍼 추가
     void doRead();
     bool handlePacket(size_t bytes_transferred);
 };
 
-void processPacketInWorker(int session_id, std::unique_ptr<std::vector<char>>& data, size_t size);
+//void processPacketInWorker(int session_id, std::unique_ptr<std::vector<char>>& data, size_t size);

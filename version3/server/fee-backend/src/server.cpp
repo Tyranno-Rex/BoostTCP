@@ -41,6 +41,107 @@ extern std::atomic<int> ES_recv_packet_fail_cnt;
 //    }
 //}
 
+void processPacketInWorker(PacketTask &task) {
+	const size_t PACKET_SIZE = 154;
+	auto data = std::move(task.data);
+	size_t size = task.size;
+	int session_id = task.session_id;
+	Session* session = task.session;
+
+	size_t processed = 0;
+	while (processed + PACKET_SIZE <= size) {
+		try {
+			std::vector<char> packet(data->begin() + processed, data->begin() + processed + PACKET_SIZE);
+
+			// PacketHeader
+			// seqNum, type, checkSum, size
+			uint32_t seq = *reinterpret_cast<uint32_t*>(packet.data());
+			PacketType type = static_cast<PacketType>(packet[4]);
+			std::string checkSum(packet.begin() + 5, packet.begin() + 21);
+			uint32_t packet_size = *reinterpret_cast<uint32_t*>(packet.data() + 21);
+
+			// Packet Count Check
+			switch (type) {
+			case PacketType::defEchoString:
+				break;
+			case PacketType::JH:
+				JH_recv_packet_total_cnt++;
+				break;
+			case PacketType::YJ:
+				YJ_recv_packet_total_cnt++;
+				break;
+			case PacketType::ES:
+				ES_recv_packet_total_cnt++;
+				break;
+			default:
+				LOGE << "Unknown packet type";
+				return;
+			}
+
+			// seqNum Check -> session 내부 변수 사용
+			if (session->getMaxSeq() != seq) {
+				LOGE << "Invalid seq: " << seq << ", max_seq: " << session->getMaxSeq();
+				// 에러 카운트 진행
+				if (type == PacketType::JH) {
+					JY_recv_packet_fail_cnt++;
+				}
+				else if (type == PacketType::YJ) {
+					YJ_recv_packet_fail_cnt++;
+				}
+				else if (type == PacketType::ES) {
+					ES_recv_packet_fail_cnt++;
+				}
+
+				// 해당 패킷에 대해서는 처리 X
+				processed += PACKET_SIZE;
+				continue;
+			}
+			session->setMaxSeq(seq + 1);
+
+			// PacketTail
+			int tail = static_cast<int>(data->at(153));
+			if (tail != -1) {
+				LOGE << "Invalid tail: " << tail;
+				if (type == PacketType::JH) {
+					JY_recv_packet_fail_cnt++;
+					return;
+				}
+				else if (type == PacketType::YJ) {
+					YJ_recv_packet_fail_cnt++;
+					return;
+				}
+				else if (type == PacketType::ES) {
+					ES_recv_packet_fail_cnt++;
+					return;
+				}
+			}
+
+			std::string message(packet.begin() + 25, packet.begin() + 25 + 128);
+			std::string total_send_cnt = std::to_string(JH_recv_packet_total_cnt + YJ_recv_packet_total_cnt + ES_recv_packet_total_cnt);
+			//LOGD << message;
+
+			if (type == PacketType::JH) {
+				JY_recv_packet_success_cnt++;
+			}
+			else if (type == PacketType::YJ) {
+				YJ_recv_packet_success_cnt++;
+			}
+			else if (type == PacketType::ES) {
+				ES_recv_packet_success_cnt++;
+			}
+			else {
+				LOGE << "Unknown packet type";
+			}
+
+			processed += PACKET_SIZE;
+		}
+		catch (const std::exception& e) {
+			LOGE << "Error in processPacketInWorker: " << e.what();
+		}
+	}
+}
+
+
 void Server::initializeThreadPool() {
     is_running = true;
     size_t thread_count = std::thread::hardware_concurrency() / 2;
@@ -56,7 +157,7 @@ void Server::initializeThreadPool() {
                 PacketTask task;
                 // 각 PacketQueue는 자체 동기화를 가지고 있음.
                 if (worker_task_queues[i].pop(task)) {
-                    processPacketInWorker(task.session_id, task.data, task.size);
+                    processPacketInWorker(task);
                 }
             }
             });
@@ -80,9 +181,8 @@ void Server::chatRun() {
     try {
         initializeThreadPool();
         tcp::acceptor acceptor(io_context, tcp::endpoint(tcp::v4(), port));
-
-		//MemoryPool_2<Session> session_pool(1000, []() { return std::make_shared<Session>(); });
 		doAccept(acceptor);
+
         // io_context를 여러 스레드에서 실행
         std::vector<std::thread> io_threads;
         size_t thread_count = std::thread::hardware_concurrency() / 2;
@@ -109,8 +209,6 @@ void Server::doAccept(tcp::acceptor& acceptor) {
     acceptor.async_accept(
 		[this, &acceptor](const boost::system::error_code& error, tcp::socket socket) {
             if (!error) {
-				//auto session = std::make_shared<Session>(std::move(socket), *this);
-
                 std::shared_ptr<Session> session = this->session_pool.acquire();
 				session.get()->initialize(std::move(socket), *this);
                 {

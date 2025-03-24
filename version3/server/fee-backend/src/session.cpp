@@ -90,8 +90,9 @@ void Session::handleReceivedData(size_t bytes_transferred) {
 		// session_id와 sequence가 있는 버전
         uint32_t received_seqnum = 0;
         std::memcpy(&received_seqnum, packet.get()->data(), sizeof(uint32_t));
-		PacketTask task(std::move(packet), PACKET_SIZE, SessionID, received_seqnum);
-		server->getPacketQueue().push(std::move(task));
+		//PacketTask task(std::move(packet), PACKET_SIZE, SessionID, received_seqnum);
+		PacketTask task(std::move(packet), PACKET_SIZE, SessionID, this);
+        server->getPacketQueue().push(std::move(task));
         processed += PACKET_SIZE;
     }
 
@@ -105,99 +106,4 @@ void Session::handleReceivedData(size_t bytes_transferred) {
 
 void Session::stop() {
 	socket.close();
-}
-
-void processPacketInWorker(int session_id, std::unique_ptr<std::vector<char>>& data, size_t size) {
-    const size_t PACKET_SIZE = 154;
-
-    size_t processed = 0;
-	uint32_t sequence = 0;
-    while (processed + PACKET_SIZE <= size) {
-        try {
-            std::vector<char> packet(data->begin() + processed, data->begin() + processed + PACKET_SIZE);
-		    
-            // PacketHeader
-			// seqNum, type, checkSum, size
-            uint32_t seq = *reinterpret_cast<uint32_t*>(packet.data());
-		    PacketType type = static_cast<PacketType>(packet[4]);
-		    std::string checkSum(packet.begin() + 5, packet.begin() + 21);
-		    uint32_t packet_size = *reinterpret_cast<uint32_t*>(packet.data() + 21);
-
-			// Packet Count Check
-		    switch (type) {
-		    case PacketType::defEchoString:
-			    break;
-		    case PacketType::JH:
-			    JH_recv_packet_total_cnt++;
-			    break;
-		    case PacketType::YJ:
-			    YJ_recv_packet_total_cnt++;
-			    break;
-		    case PacketType::ES:
-			    ES_recv_packet_total_cnt++;
-			    break;
-		    default:
-			    LOGE << "Unknown packet type";
-			    return;
-		    }
-            
-            if (!g_packet_checker.is_in_order(session_id, seq)) {
-                // 에러 카운트 진행
-                if (type == PacketType::JH) {
-					JY_recv_packet_fail_cnt++;
-				}
-				else if (type == PacketType::YJ) {
-					YJ_recv_packet_fail_cnt++;
-				}
-				else if (type == PacketType::ES) {
-					ES_recv_packet_fail_cnt++;
-				}
-
-                // 해당 패킷에 대해서는 처리 X
-                processed += PACKET_SIZE;
-				continue;
-            }
-
-
-		    // PacketTail
-			int tail = static_cast<int>(data->at(153));
-		    if (tail != -1) {
-				LOGE << "Invalid tail: " << tail;
-			    if (type == PacketType::JH) {
-				    JY_recv_packet_fail_cnt++;
-                    return;
-			    }
-			    else if (type == PacketType::YJ) {
-				    YJ_recv_packet_fail_cnt++;
-                    return;
-                }
-			    else if (type == PacketType::ES) {
-				    ES_recv_packet_fail_cnt++;
-                    return;
-                }
-		    }
-            
-		    std::string message(packet.begin() + 25, packet.begin() + 25 + 128);
-		    std::string total_send_cnt = std::to_string(JH_recv_packet_total_cnt + YJ_recv_packet_total_cnt + ES_recv_packet_total_cnt);
-            //LOGD << message;
-
-		    if (type == PacketType::JH) {
-			    JY_recv_packet_success_cnt++;
-		    }
-		    else if (type == PacketType::YJ) {
-			    YJ_recv_packet_success_cnt++;
-		    }
-		    else if (type == PacketType::ES) {
-			    ES_recv_packet_success_cnt++;
-		    }
-		    else {
-			    LOGE << "Unknown packet type";
-		    }
-
-		    processed += PACKET_SIZE;
-		}
-        catch (const std::exception& e) {
-            LOGE << "Error in processPacketInWorker: " << e.what();
-        }
-    }
 }

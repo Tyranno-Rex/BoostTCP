@@ -43,51 +43,64 @@ using tcp = net::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 #define expected_checksum 0x04
 #define expected_size 0x08
 
+//void processPacketInWorker(PacketTask task);
+
 struct PacketTask {
     std::unique_ptr<std::vector<char>> data;
-	uint32_t session_id;
-	uint32_t seq_num;
+	Session* session;
+    uint32_t session_id;
+	//uint32_t seq_num;
     size_t size;
 
 	PacketTask() = default;
 
-    //PacketTask(std::unique_ptr<std::vector<char>>&& buffer, size_t s)
-    //    : data(std::move(buffer))
-    //    , size(s) {
+	//PacketTask(std::unique_ptr<std::vector<char>>&& buffer, size_t s, uint32_t session_id, uint32_t sequence)
+	//	: data(std::move(buffer))
+	//	, size(s)
+	//	, session_id(session_id)
+	//	, seq_num(sequence) {
+	//}
+    
+    //PacketTask(PacketTask&& other) noexcept
+    //    : data(std::move(other.data)), size(other.size),
+    //    session_id(other.session_id), seq_num(other.seq_num) {
     //}
 
-	PacketTask(std::unique_ptr<std::vector<char>>&& buffer, size_t s, uint32_t session_id, uint32_t sequence)
+    //PacketTask& operator=(PacketTask&& other) noexcept {
+    //    if (this != &other) {
+    //        data = std::move(other.data);
+    //        size = other.size;
+    //        session_id = other.session_id;  // 추가
+    //        seq_num = other.seq_num;        // 추가
+    //    }
+    //    return *this;
+    //}
+
+	PacketTask(std::unique_ptr<std::vector<char>>&& buffer, size_t s, uint32_t session_id, Session* session)
 		: data(std::move(buffer))
 		, size(s)
 		, session_id(session_id)
-		, seq_num(sequence) {
+		, session(session) {
 	}
 
-    //PacketTask(PacketTask&& other) noexcept
-    //    : data(std::move(other.data))
-    //    , size(other.size) {
-    //}
+	PacketTask(PacketTask&& other) noexcept
+		: data(std::move(other.data)), size(other.size),
+		session_id(other.session_id), session(other.session) {
+	}
 
-    PacketTask(PacketTask&& other) noexcept
-        : data(std::move(other.data)), size(other.size),
-        session_id(other.session_id), seq_num(other.seq_num) {
-    }
-
-    PacketTask& operator=(PacketTask&& other) noexcept {
-        if (this != &other) {
-            data = std::move(other.data);
-            size = other.size;
-            session_id = other.session_id;  // 추가
-            seq_num = other.seq_num;        // 추가
-        }
-        return *this;
-    }
-
+	PacketTask& operator=(PacketTask&& other) noexcept {
+		if (this != &other) {
+			data = std::move(other.data);
+			size = other.size;
+			session_id = other.session_id;  // 추가
+			session = other.session;        // 추가
+		}
+		return *this;
+	}
 
     PacketTask(const PacketTask&) = delete;
     PacketTask& operator=(const PacketTask&) = delete;
 };
-
 
 class PacketQueue {
 private:
@@ -172,6 +185,7 @@ private:
     std::vector<std::shared_ptr<Session>> clients;
     std::mutex clients_mutex;
     MemoryPool_2<Session> session_pool;
+	std::unordered_map<uint32_t, std::shared_ptr<Session>> session_map;
 
     std::vector<std::thread> worker_threads;
 	std::thread pop_thread;
