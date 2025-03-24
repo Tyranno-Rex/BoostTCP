@@ -96,34 +96,6 @@ private:
     size_t max_queue_size = 1000000;
 
 public:
-    PacketQueue() = default;
-
-    // º¹»ç »ı¼ºÀÚ/´ëÀÔ ¿¬»êÀº »èÁ¦
-    PacketQueue(const PacketQueue&) = delete;
-    PacketQueue& operator=(const PacketQueue&) = delete;
-
-    // move »ı¼ºÀÚ: ³»ºÎÀÇ tasks¿Í »óÅÂ¸¸ ÀÌµ¿, mutex¿Í conditionÀº »õ·Î ±âº» »ı¼ºµÊ
-    PacketQueue(PacketQueue&& other) noexcept {
-        std::lock_guard<std::mutex> lock(other.mutex);
-        tasks = std::move(other.tasks);
-        stopping = other.stopping;
-        max_queue_size = other.max_queue_size;
-        // mutex¿Í conditionÀº ±âº» »óÅÂ·Î ³²À½.
-    }
-
-    PacketQueue& operator=(PacketQueue&& other) noexcept {
-        if (this != &other) {
-            std::lock_guard<std::mutex> lock_this(mutex);
-            std::lock_guard<std::mutex> lock_other(other.mutex);
-            tasks = std::move(other.tasks);
-            stopping = other.stopping;
-            max_queue_size = other.max_queue_size;
-            // mutex¿Í conditionÀº ±×´ë·Î.
-        }
-        return *this;
-    }
-
-
     bool push(PacketTask&& task) {
         std::unique_lock<std::mutex> lock(mutex);
         condition.wait(lock, [this] { return tasks.size() < max_queue_size || stopping; });
@@ -171,10 +143,8 @@ class Server {
     std::mutex clients_mutex;
 
     std::vector<std::thread> worker_threads;
-	std::thread pop_thread;
-
-
     PacketQueue packet_queue;
+<<<<<<< HEAD
 
     // °¢ worker¸¶´Ù Àü¿ë task queue, mutex, condition_variable »ı¼º
 	std::vector<PacketQueue> worker_task_queues;
@@ -182,16 +152,13 @@ class Server {
     std::vector<std::unique_ptr<std::condition_variable>> worker_task_cvs;
 
 
+=======
+>>>>>>> parent of cfe8a2e (í´ë¼ ë©”ëª¨ë¦¬ ë¦­ ë° ì„œë²„ sequence ìˆœì„œ ì²˜ë¦¬ ì™„ë£Œ -> í´ë¼ì´ì–¸íŠ¸ ì„¸ì…˜ ë³„ ì²˜ë¦¬ë˜ëŠ” ìŠ¤ë ˆë“œë¥¼ ì§€ì •í•¨ìœ¼ë¡œì¨ ìˆœì„œë¥¼ ë³´ì¥í•¨.)
     std::atomic<bool> is_running{ false };
-
 public:
     Server(boost::asio::io_context& io_context, unsigned short port)
         : io_context(io_context), port(port) {
     }
-
-    // º¹»ç »ı¼ºÀÚ¿Í º¹»ç ´ëÀÔ ¿¬»êÀÚ¸¦ »èÁ¦ÇØ non-copyable·Î ¸¸µê
-    Server(const Server&) = delete;
-    Server& operator=(const Server&) = delete;
 
     void initializeThreadPool();
 

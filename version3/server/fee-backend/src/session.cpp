@@ -143,7 +143,7 @@ void processPacketInWorker(int session_id, std::unique_ptr<std::vector<char>>& d
 			    return;
 		    }
             
-            if (!g_packet_checker.is_in_order(session_id, seq)) {
+            if (g_packet_checker.is_in_order(session_id, seq)) {
                 // ���� ī��Ʈ ����
                 if (type == PacketType::JH) {
 					JH_recv_packet_fail_cnt++;
@@ -180,7 +180,11 @@ void processPacketInWorker(int session_id, std::unique_ptr<std::vector<char>>& d
 		    }
             
 		    std::string message(packet.begin() + 25, packet.begin() + 25 + 128);
+<<<<<<< HEAD
             //LOGD << message;
+=======
+		    std::string total_send_cnt = std::to_string(JH_recv_packet_total_cnt + YJ_recv_packet_total_cnt + ES_recv_packet_total_cnt);
+>>>>>>> parent of cfe8a2e (클라 메모리 릭 및 서버 sequence 순서 처리 완료 -> 클라이언트 세션 별 처리되는 스레드를 지정함으로써 순서를 보장함.)
 
 		    if (type == PacketType::JH) {
 			    JH_recv_packet_success_cnt++;

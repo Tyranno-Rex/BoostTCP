@@ -40,6 +40,51 @@ static inline void trim(std::string& s) {
 
 
 void write_messages(boost::asio::io_context& io_context, const std::string& host, const std::string& port) {
+<<<<<<< HEAD
+=======
+    // »ç¿ëÀÚ ¸í·É ÀÔ·Â ¾²·¹µå ½ÃÀÛ
+    //std::thread inputThread(input_thread);
+
+    // ·Î±× ÇÁ·Î¼¼½º(º°µµ ÄÜ¼Ö) »ı¼º
+	// security ¼Ó¼ºÀ» ¼³Á¤ÇÏÁö ¾ÊÀ¸¸é ÄÜ¼ÖÀÌ »ı¼ºµÇÁö ¾ÊÀ½
+    SECURITY_ATTRIBUTES security = {};
+	// nLength´Â ±¸Á¶Ã¼ÀÇ Å©±â, bInheritHandleÀº ÀÚ½Ä ÇÁ·Î¼¼½º¿¡ »ó¼ÓÇÒÁö ¿©ºÎ
+    security.nLength = sizeof(SECURITY_ATTRIBUTES);
+    security.bInheritHandle = TRUE;
+
+	// ÆÄÀÌÇÁ »ı¼º
+    HANDLE hPipeIn_Read = nullptr, hPipeIn_Write = nullptr;
+	// CreatePipe ÇÔ¼ö´Â ÆÄÀÌÇÁ¸¦ »ı¼ºÇÏ°í ÇÚµéÀ» ¹İÈ¯ -> ÆÄÀÌÇÁÀÇ ¿ªÇÒ: ÇÁ·Î¼¼½º °£ Åë½Å
+	// CreatePipe(ÆÄÀÌÇÁÇÚµé, ÆÄÀÌÇÁÇÚµé, º¸¾È¼Ó¼º, ¹öÆÛÅ©±â)
+    CreatePipe(&hPipeIn_Read, &hPipeIn_Write, &security, 0);
+
+	// ÇÁ·Î¼¼½º ½ÃÀÛ Á¤º¸ ¼³Á¤
+    STARTUPINFO sinfo = {};
+	// cb´Â ±¸Á¶Ã¼ÀÇ Å©±â, hStdInputÀº Ç¥ÁØ ÀÔ·Â ÇÚµé, dwFlags´Â ÇÃ·¡±×
+    sinfo.cb = sizeof(STARTUPINFO);
+    sinfo.hStdInput = hPipeIn_Read;
+    sinfo.dwFlags = STARTF_USESTDHANDLES;
+
+	// ÇÁ·Î¼¼½º Á¤º¸ ¼³Á¤
+    PROCESS_INFORMATION pinfo = {};
+	// lpCommandLineÀº ½ÇÇàÇÒ ÇÁ·Î±×·¥ÀÇ °æ·Î
+    TCHAR lpCommandLine[] = TEXT("cmd.exe");
+
+
+	// CreateProcess(¸ğÆ«ÀÌ¸§, ¸í·É¶óÀÎ, º¸¾È¼Ó¼º, º¸¾È¼Ó¼º, »ó¼Ó¿©ºÎ, 
+    //              ÇÃ·¡±×, È¯°æº¯¼ö, ÇöÀçµğ·ºÅä¸®, ½ÃÀÛÁ¤º¸, ÇÁ·Î¼¼½ºÁ¤º¸)
+    if (!CreateProcess( NULL, lpCommandLine, NULL, NULL, TRUE,
+                        CREATE_NEW_CONSOLE, NULL, NULL, &sinfo, &pinfo ))
+    {
+        std::cerr << "Log process creation failed. Error: " << GetLastError() << std::endl;
+    }
+    else {
+        // ·Î±× Ãâ·Â ¾²·¹µå
+        std::thread logThread(log_process, hPipeIn_Write);
+        logThread.detach();
+
+    }
+>>>>>>> parent of cfe8a2e (í´ë¼ ë©”ëª¨ë¦¬ ë¦­ ë° ì„œë²„ sequence ìˆœì„œ ì²˜ë¦¬ ì™„ë£Œ -> í´ë¼ì´ì–¸íŠ¸ ì„¸ì…˜ ë³„ ì²˜ë¦¬ë˜ëŠ” ìŠ¤ë ˆë“œë¥¼ ì§€ì •í•¨ìœ¼ë¡œì¨ ìˆœì„œë¥¼ ë³´ì¥í•¨.)
 
     try {
         while (is_running) {
@@ -152,20 +197,22 @@ void write_messages(boost::asio::io_context& io_context, const std::string& host
                 system("clear");
 #endif
             }
-            else if (message == "/stats")
-            {
-                for (int i = 0; i < 5; ++i) {
-                    LOGD << "Total: " << total_send_cnt.load() << " / Success: " << total_send_success_cnt.load()
-                        << " / Fail: " << total_send_fail_cnt.load() << " / Success Rate: "
-                        << (total_send_cnt.load() > 0
-                            ? (double)total_send_success_cnt.load() / total_send_cnt.load() * 100
-                            : 0) << "%";
-                    std::this_thread::sleep_for(std::chrono::seconds(1));
-                }
-            }
         }
     }
     catch (std::exception& e) {
         std::cerr << "Exception in write thread: " << e.what() << std::endl;
     }
+<<<<<<< HEAD
+=======
+
+    // ÇÁ·Î¼¼½º Á¤¸®
+        
+    if (pinfo.hProcess) {
+        TerminateProcess(pinfo.hProcess, 0);
+        CloseHandle(pinfo.hProcess);
+        CloseHandle(pinfo.hThread);
+    }
+    CloseHandle(hPipeIn_Read);
+    CloseHandle(hPipeIn_Write);
+>>>>>>> parent of cfe8a2e (í´ë¼ ë©”ëª¨ë¦¬ ë¦­ ë° ì„œë²„ sequence ìˆœì„œ ì²˜ë¦¬ ì™„ë£Œ -> í´ë¼ì´ì–¸íŠ¸ ì„¸ì…˜ ë³„ ì²˜ë¦¬ë˜ëŠ” ìŠ¤ë ˆë“œë¥¼ ì§€ì •í•¨ìœ¼ë¡œì¨ ìˆœì„œë¥¼ ë³´ì¥í•¨.)
 }

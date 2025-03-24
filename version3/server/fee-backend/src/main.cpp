@@ -159,8 +159,12 @@ int main(void) {
         LOGE << "Server start";
         boost::asio::io_context io_context;
         Server chatServer(io_context, 7777);
+<<<<<<< HEAD
         //Server consoleServer(io_context, 7778);
         
+=======
+        Server consoleServer(io_context, 7778);
+>>>>>>> parent of cfe8a2e (클라 메모리 릭 및 서버 sequence 순서 처리 완료 -> 클라이언트 세션 별 처리되는 스레드를 지정함으로써 순서를 보장함.)
         // Memory pool �ʱ�ȭ
 		g_memory_pool.init(10000);
 
@@ -185,7 +189,7 @@ int main(void) {
         }
 
         // ���� ���� ó��
-        //consoleServer.consoleStop();
+        consoleServer.consoleStop();
         chatServer.chatStop();
 
         // ������ ����
