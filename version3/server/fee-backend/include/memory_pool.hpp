@@ -112,6 +112,7 @@ public:
 			}
 		}
 
+		LOGD << "MemoryPool_2::acquire() - pool is empty";
         if (pool_.empty()) {
             //return factory_();
 			// 만약 pool이 비어있으면 새로운 객체를 생성

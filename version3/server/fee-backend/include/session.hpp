@@ -63,6 +63,7 @@ public:
     void initialize(tcp::socket socket_, Server& server_) {
 		socket = std::move(socket_);
 		server = &server_;
+		isActive() = true;
     }
 
 	int getMaxSeq() { return max_seq; }

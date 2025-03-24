@@ -62,7 +62,7 @@ void processPacketInWorker(PacketTask &task) {
 
 			// seqNum Check -> session 내부 변수 사용
 			if (session->getMaxSeq() != seq) {
-				LOGE << "Invalid seq: " << seq << ", max_seq: " << session->getMaxSeq();
+				LOGE << "Invalid seq: " << seq << ", max_seq: " << session->getMaxSeq() << ", session_id: " << session_id;
 				// 에러 카운트 진행
 				if (type == PacketType::JH) {
 					JY_recv_packet_fail_cnt++;
@@ -225,8 +225,10 @@ void Server::doAccept(tcp::acceptor& acceptor) {
     acceptor.async_accept(
 		[this, &acceptor](const boost::system::error_code& error, tcp::socket socket) {
             if (!error) {
-                std::shared_ptr<Session> session = this->session_pool.acquire();
+                
+				std::shared_ptr<Session> session = this->session_pool.acquire();
 				session.get()->setActive(true);
+
 				session.get()->initialize(std::move(socket), *this);
                 {
                     std::lock_guard<std::mutex> lock(clients_mutex);
@@ -235,7 +237,6 @@ void Server::doAccept(tcp::acceptor& acceptor) {
 					LOGI << "New client connected";
                     clients.push_back(session);
                 }
-                //session->start();
 				session.get()->start();
             }
 			doAccept(acceptor);
