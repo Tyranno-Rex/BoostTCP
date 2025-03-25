@@ -77,51 +77,100 @@ public:
 };
 
 
+#include <memory>
+#include <functional>
+#include <concurrent_queue.h>
+#include <concurrent_vector.h>
+
 template <typename T>
 class MemoryPool_2 {
 private:
-    std::vector<std::shared_ptr<T>> pool_;
-    std::mutex pool_mutex_;
-    using FactoryFunc = std::function<std::shared_ptr<T>()>;
-    FactoryFunc factory_;
+	//concurrency::concurrent_queue<std::shared_ptr<T>> pool_;
+	concurrency::concurrent_vector<std::shared_ptr<T>> pool_;
+	using FactoryFunc = std::function<std::shared_ptr<T>()>;
+	FactoryFunc factory_;
 
 public:
-    MemoryPool_2(size_t count, FactoryFunc factory) : factory_(factory) {
-        for (size_t i = 0; i < count; ++i) {
-            pool_.emplace_back(factory_());
-        }
-    }
-
-    ~MemoryPool_2() {
-        close();
-    }
-
-	void init(size_t count) {
+	MemoryPool_2(size_t count, FactoryFunc factory) : factory_(factory) {
 		for (size_t i = 0; i < count; ++i) {
-			pool_.emplace_back(factory_());
+			//pool_.push(factory_());
+			pool_.push_back(factory_());
 		}
 	}
 
-    std::shared_ptr<T> acquire() {
-        std::lock_guard<std::mutex> lock(pool_mutex_);
-        if (pool_.empty()) {
-            //return factory_();
-			pool_.emplace_back(factory_());
-        }
-        auto obj = pool_.back();
-        pool_.pop_back();
-        return obj;
-    }
+	~MemoryPool_2() {
+		close();
+	}
 
-    void release(std::shared_ptr<T> obj) {
-        std::lock_guard<std::mutex> lock(pool_mutex_);
-        pool_.push_back(std::move(obj)); // 반환된 객체 저장
-    }
+	void init(size_t count) {
+		for (size_t i = 0; i < count; ++i) {
+			//pool_.push(factory_());
+			pool_.push_back(factory_());
+		}
+	}
 
-    void close() {
-        std::lock_guard<std::mutex> lock(pool_mutex_);
-        pool_.clear();
-    }
+	//std::shared_ptr<T> acquire() {
+	//	std::shared_ptr<T> obj;
+	//	/*if (!pool_.try_pop(obj)) {
+	//		obj = factory_();
+	//		pool_.push(obj);
+	//	}*/
+	//	if (pool_.empty()) {
+	//		obj = factory_();
+	//		pool_.push_back(obj);
+	//	}
+	//	else {
+	//		obj = pool_.back();
+	//		pool_.pop_back();
+	//	}
+	//	return obj;
+	//}
+
+	std::shared_ptr<T> acquire() {
+		std::shared_ptr<T> obj;
+
+		if (pool_.empty()) {
+			obj = factory_();
+			pool_.push_back(obj);
+		}
+		else {
+			// 동기화 필요
+			auto lastIndex = pool_.size() - 1;
+			obj = pool_[lastIndex];
+
+			// concurrent_vector는 pop_back이 없으므로, erase 사용 (주의: 느릴 수 있음)
+			//pool_.erase(pool_.begin() + lastIndex);
+			pool_.push_back(obj);
+		}
+
+		return obj;
+	}
+
+
+	void release(std::shared_ptr<T> obj) {
+		//pool_.push(std::move(obj));
+		pool_.push_back(std::move(obj));
+	}
+
+	void close() {
+		std::shared_ptr<T> obj;
+		
+
+		//while (pool_.try_pop(obj)) {
+		// 	obj.reset(); // 명시적으로 해제
+		//}
+
+		for (auto& obj : pool_) {
+			obj.reset();
+		}
+		pool_.clear();
+	}
+
+	//concurrency::concurrent_queue<std::shared_ptr<T>>& getPool() {
+	//	return pool_;
+	//}
+
+	concurrency::concurrent_vector<std::shared_ptr<T>>& getPool() {
+		return pool_;
+	}
 };
-
-

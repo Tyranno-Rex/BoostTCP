@@ -50,13 +50,6 @@ void Session::doRead() {
                 LOGI << "Client disconnected";
                 g_memory_pool.release(current_buffer);
                 stop();
-				this->setConnected(false);
-
-                auto now = std::chrono::system_clock::now();
-				auto now_t = std::chrono::system_clock::to_time_t(now);
-				std::string buf = std::to_string(now_t);
-				this->setLastConnectTime(buf);
-                //server.removeClient(self);
             }
         });
 }
@@ -108,5 +101,10 @@ void Session::handleReceivedData(size_t bytes_transferred) {
 
 
 void Session::stop() {
-	socket.close();
+    socket.close();
+    this->setConnected(false);
+    auto now = std::chrono::system_clock::now();
+    auto now_t = std::chrono::system_clock::to_time_t(now);
+    std::string buf = std::to_string(now_t);
+    this->setLastConnectTime(buf);
 }

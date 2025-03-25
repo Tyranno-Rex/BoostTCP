@@ -61,8 +61,8 @@ void processPacketInWorker(PacketTask &task) {
 			}
 
 			// seqNum Check -> session 내부 변수 사용
-			if (session->getMaxSeq() != seq) {
-				LOGE << "Invalid seq: " << seq << ", max_seq: " << session->getMaxSeq();
+			if (session->getMaxSeq() > seq) {
+				LOGE << "Invalid seq: " << seq << ", max_seq: " << session->getMaxSeq() << ", session_id: " << session_id;
 				// 에러 카운트 진행
 				if (type == PacketType::JH) {
 					JY_recv_packet_fail_cnt++;
@@ -125,7 +125,7 @@ void processPacketInWorker(PacketTask &task) {
 
 void Server::initializeThreadPool() {
     is_running = true;
-    size_t thread_count = std::thread::hardware_concurrency() / 2;
+    size_t thread_count = std::thread::hardware_concurrency();
     std::cout << "Thread count: " << thread_count << std::endl;
 
     // worker 전용 PacketQueue를 thread_count 크기로 초기화 (default constructor가 호출됨)
@@ -159,9 +159,10 @@ void Server::initializeThreadPool() {
 	client_check_thread = std::thread([this]() {
 		while (is_running) {
 			std::this_thread::sleep_for(std::chrono::seconds(10));
-
-			std::lock_guard<std::mutex> lock(clients_mutex);
-			clients.erase(std::remove_if(clients.begin(), clients.end(),
+			
+			// vector 사용 시
+			//std::lock_guard<std::mutex> lock(clients_mutex);
+			/*clients.erase(std::remove_if(clients.begin(), clients.end(),
 				[](const std::shared_ptr<Session>& session) {
 					if (!session->getConnected()) {
 						auto now = std::chrono::system_clock::now();
@@ -174,7 +175,44 @@ void Server::initializeThreadPool() {
 						}
 					}
 					return false;
-				}), clients.end());
+				}), clients.end());*/
+			
+			// concurrent_queue 사용 시
+			// session_pool에서 session을 가져와 CLIENT_CONNECTION_MAINTENANCE_INTERVAL 시간이 지난 session을 제거
+			//std::shared_ptr<Session> session;
+			//while (session_pool.getPool().try_pop(session)) {
+			//	if (!session->getConnected()) {
+			//		auto now = std::chrono::system_clock::now();
+			//		auto last_connect_time = session->getLastConnectTime();
+			//		auto last_connect_time_t = std::chrono::system_clock::from_time_t(std::stoi(last_connect_time));
+			//		auto diff = std::chrono::duration_cast<std::chrono::seconds>(now - last_connect_time_t).count();
+			//		if (diff > CLIENT_CONNECTION_MAINTENANCE_INTERVAL) {
+			//			session_pool.release(session);
+			//		}
+			//		else {
+			//			session_pool.getPool().push(session);
+			//		}
+			//	}
+			//	else {
+			//		session_pool.getPool().push(session);
+			//	}
+			//}
+
+			// concurrent_vector 사용 시
+			// session_map에서 CLIENT_CONNECTION_MAINTENANCE_INTERVAL 시간이 지난 session을 제거
+			for (auto& session : session_map) {
+				if (!session.second->getConnected()) {
+					auto now = std::chrono::system_clock::now();
+					auto last_connect_time = session.second->getLastConnectTime();
+					auto last_connect_time_t = std::chrono::system_clock::from_time_t(std::stoi(last_connect_time));
+					auto diff = std::chrono::duration_cast<std::chrono::seconds>(now - last_connect_time_t).count();
+					if (diff > CLIENT_CONNECTION_MAINTENANCE_INTERVAL) {
+						session.second->stop();
+						session_map.erase(session.first);
+					}
+				}
+			}
+
 		}
 		});
 
@@ -219,7 +257,7 @@ void Server::doAccept(tcp::acceptor& acceptor) {
 					Session_Count++;
 					session.get()->setSessionID(Session_Count);
 					LOGI << "New client connected";
-                    clients.push_back(session);
+                    //clients.push_back(session);
                 }
                 //session->start();
 				session.get()->start();
@@ -228,22 +266,23 @@ void Server::doAccept(tcp::acceptor& acceptor) {
         });
 }
 
-void Server::removeClient(std::shared_ptr<Session> client) {
-    std::lock_guard<std::mutex> lock(clients_mutex);
-    clients.erase(
-        std::remove(clients.begin(), clients.end(), client),
-        clients.end());
-}
-
 void Server::consoleStop() {
 	io_context.stop();
 }
 
+//void Server::removeClient(std::shared_ptr<Session> client) {
+//    std::lock_guard<std::mutex> lock(clients_mutex);
+//    clients.erase(
+//        std::remove(clients.begin(), clients.end(), client),
+//        clients.end());
+//}
+
+
 void Server::chatStop() {
-	for (auto& client : clients) {
-		//client->stop();
-		client.get()->stop();
-	}
+	//for (auto& client : clients) {
+	//	//client->stop();
+	//	client.get()->stop();
+	//}
     
 	io_context.stop();
 }

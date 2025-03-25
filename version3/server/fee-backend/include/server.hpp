@@ -49,7 +49,6 @@ class Server {
 private:
     boost::asio::io_context& io_context;
     unsigned short port;
-    std::vector<std::shared_ptr<Session>> clients;
     std::mutex clients_mutex;
     MemoryPool_2<Session> session_pool;
 	std::unordered_map<uint32_t, std::shared_ptr<Session>> session_map;

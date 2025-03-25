@@ -75,6 +75,12 @@ public:
     void initialize(tcp::socket socket_, Server& server_) {
 		socket = std::move(socket_);
 		server = &server_;
+		memset(current_buffer.data(), 0, current_buffer.size());
+		memset(packet_buffer.data(), 0, packet_buffer.size());
+		packet_buffer_offset = 0;
+		max_seq = 0;
+		is_connected = true;
+		last_connect_time = "";
     }
 
 	int getMaxSeq() { return max_seq; }
